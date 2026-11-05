@@ -52,11 +52,12 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{bord
 .mc{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:14px;margin:10px 0}.mt{display:flex;justify-content:space-between;gap:8px;align-items:center}.pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--bd);white-space:nowrap}.pill.on{background:var(--ok);color:#fff;border-color:var(--ok)}
 .res{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:8px;margin:10px 0}.res .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.res .s{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}.mc .row button{flex:1;padding:10px 8px}
 .pal{display:flex;gap:10px;align-items:center;justify-content:center;margin:20px 0 6px;flex-wrap:wrap}.sw{width:44px;height:44px;border-radius:50%;padding:0;border:3px solid var(--bd);background:linear-gradient(135deg,var(--c1) 50%,var(--c2) 50%)}.sw.on{border-color:var(--tx)}
-.rg{display:grid;gap:14px}.prow{display:grid;grid-template-columns:60px 1fr auto auto;gap:6px;margin:6px 0;align-items:center}.prow button{padding:8px 12px}.prow .lc{display:flex;gap:4px;align-items:center;margin:0;font-size:13px;white-space:nowrap}.prow input[type=checkbox]{width:auto}
+#warn:not(:empty){position:fixed;top:0;left:0;right:0;z-index:20;background:var(--dn);color:#fff;padding:10px;padding-top:calc(10px + env(safe-area-inset-top,0px));text-align:center;font-weight:700;font-size:14px}
+.rg{display:grid;gap:14px}.prow{display:grid;grid-template-columns:60px 1fr auto auto auto;gap:6px;margin:6px 0;align-items:center}.prow button{padding:8px 12px}.prow .lc{display:flex;gap:4px;align-items:center;margin:0;font-size:13px;white-space:nowrap}.prow input[type=checkbox]{width:auto}
 @media(min-width:700px){.sheet{border-radius:20px;align-self:center}.rg{grid-template-columns:1fr 1fr}}
 @media print{.noprint{display:none!important}body{background:#fff;color:#000}.box,.card{border:1px solid #999}#app{max-width:none}}
 </style></head><body>
-<div id="app"></div><div id="modal"></div>
+<div id="warn"></div><div id="app"></div><div id="modal"></div>
 <script>
 /* ============ SETPOINT v0.1 ============
  Arquitetura: o estado de uma partida é um REGISTRO DE EVENTOS (match.events).
@@ -66,11 +67,16 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{bord
 
 /* ---- Store: trocar por API/banco depois sem mexer nas views ---- */
 const KEY='setpoint:v1';let DB={matches:[]},cur=null,view='home',flow={};
-try{DB=JSON.parse(localStorage.getItem(KEY))||DB}catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}};
+/* se o JSON local estiver corrompido, guarda uma cópia antes de qualquer novo salvamento */
+try{const raw=localStorage.getItem(KEY);if(raw)try{DB=JSON.parse(raw)||DB}catch(e){try{localStorage.setItem(KEY+':corrompido',raw)}catch(_){}document.getElementById('warn').textContent='⚠ Dados locais ilegíveis: uma cópia foi guardada. Importe um backup.'}}catch(e){}
+if(!Array.isArray(DB.matches))DB.matches=[];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));$('#warn').textContent='';return true}catch(e){$('#warn').textContent='⚠ Não foi possível salvar neste aparelho (memória cheia ou modo privado). Exporte um backup agora.';return false}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
+/* migração: descarta registros inválidos e converte o antigo m.ended em evento 'end' */
+DB.matches=DB.matches.filter(m=>m&&m.teams&&m.rules&&Array.isArray(m.events));
+DB.matches.forEach(m=>{if(m.ended){m.events.push({id:uid(),type:'end',t:m.ended});delete m.ended}});
 const SK={attack:'Ataque',block:'Bloqueio',serve:'Saque',error:'Erro adversário'};
 const hm=t=>new Date(t).toLocaleTimeString('pt-BR');
 const dur=ms=>{const t=Math.max(0,Math.floor(ms/1000)),h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60,p=n=>String(n).padStart(2,'0');return(h?h+':':'')+p(m)+':'+p(s)};
@@ -80,7 +86,7 @@ const elapsed=s=>s.start?(s.done?s.end:Date.now())-s.start:0;
 /* ---- Regras ---- */
 const target=(m,no)=>{const r=m.rules,tot=r.setsToWin*2-1;return(no===tot&&tot>1)?r.decPts:r.pts};
 function replay(m){
-  const r=m.rules;let sc=[0,0],no=1,w=[0,0],sets=[],done=false,start=null,end=null;
+  const r=m.rules;let sc=[0,0],no=1,w=[0,0],sets=[],done=false,start=null,end=null,manual=false;
   for(const e of m.events){
     e.set=no;
     if(e.type==='point'){
@@ -89,23 +95,28 @@ function replay(m){
         const t=sc[0]>sc[1]?0:1;w[t]++;sets.push({no,sc:[...sc],w:t});sc=[0,0];no++;
         if(w[t]>=r.setsToWin){done=true;end=e.t}
       }
-    }else e.sc=[...sc];
+    }else{e.sc=[...sc];if(e.type==='end'&&!done){done=true;manual=true;end=e.t}}
   }
-  let manual=false;if(m.ended&&!done){done=true;manual=true;end=m.ended}
   return{sc,no,w,sets,done,start,end,manual};
 }
 const evText=(e,m)=>{const T=i=>esc(m.teams[i].name);
   if(e.type==='point')return e.skill==='error'?T(e.team)+': erro adversário'+(e.p?' ('+esc(e.p)+')':'')+(e.lib?' · líbero: '+esc(e.lib):''):T(e.team)+': '+SK[e.skill]+(e.p?' — '+esc(e.p):'');
   if(e.type==='to')return 'Tempo técnico — '+T(e.team);
-  if(e.type==='sub')return 'Substituição '+T(e.team)+': sai '+esc(e.out||'?')+', entra '+esc(e.in||'?');
-  return 'Obs: '+esc(e.text)};
+  if(e.type==='sub')return (e.kind==='libero'?'Troca de líbero ':'Substituição ')+T(e.team)+': sai '+esc(e.out||'?')+', entra '+esc(e.in||'?');
+  return e.type==='end'?'Partida encerrada manualmente':'Obs: '+esc(e.text)};
 
 /* ---- Modal ---- */
 const openM=h=>{$('#modal').innerHTML='<div class="ov" data-a="close"><div class="sheet">'+h+'</div></div>'};
 const closeM=()=>{$('#modal').innerHTML=''};
 /* líbero (p.l): não aparece em saque nem bloqueio */
 const lbl=p=>(p.n?'#'+p.n+' ':'')+p.name+(p.l?' (L)':'');
-const roster=(i,skill)=>cur.teams[i].players.filter(p=>!(p.l&&!cur.rules.libServe&&(skill==='serve'||skill==='block'))).map(lbl);
+/* ---- Escalação: titulares (p.s) + substituições do registro de eventos ---- */
+function starters(m,t){const P=m.teams[t].players;if(P.some(p=>p.s!==undefined))return P.filter(p=>p.s).map(lbl);return P.filter(p=>m.rules.libServe||!p.l).slice(0,6).map(lbl)}
+function lineup(m,t){let court=starters(m,t);for(const e of m.events)if(e.type==='sub'&&e.team===t)court=court.map(x=>x===e.out?e.in:x);return{court,bench:m.teams[t].players.map(lbl).filter(x=>!court.includes(x))}}
+const withS=(m,t)=>{const st=starters(m,t);return m.teams[t].players.map(p=>({...p,s:st.includes(lbl(p))}))};
+const courtShort=(m,t)=>lineup(m,t).court.map(x=>(x.match(/^#\S+/)||[x])[0]).join(' ');
+/* regras do líbero: nunca bloqueia; só saca se a formação for de 6 (líbero saca). all=true ignora quem está em quadra (edição de registros) */
+const roster=(i,skill,all)=>{const on=all?null:lineup(cur,i).court;return cur.teams[i].players.filter(p=>!(p.l&&(skill==='block'||(skill==='serve'&&!cur.rules.libServe)))).map(lbl).filter(x=>!on||on.includes(x))};
 
 /* ---- Views ---- */
 function home(){
@@ -113,7 +124,7 @@ function home(){
   return '<div class="hero"><h1>SET<b>POINT</b></h1><p>Súmula digital de vôlei — rápida, simples e pronta para a quadra.</p>'+
   '<button class="big" data-a="new">+ Nova partida</button></div><h3>Partidas</h3>'+
   (ms.length?ms.map(m=>{const s=replay(m);return '<div class="mc"><div class="mt"><b>'+esc(m.name)+'</b><span class="pill'+(s.done?'':' on')+'">'+(s.done?'Encerrada':'Em andamento')+'</span></div><div class="res"><span class="n" style="color:var(--a)">'+esc(m.teams[0].name)+'</span><span class="s">'+s.w[0]+' × '+s.w[1]+'</span><span class="n" style="color:var(--b)">'+esc(m.teams[1].name)+'</span></div><div class="mut">'+new Date(m.created).toLocaleString('pt-BR')+'</div><div class="row" style="margin-top:10px"><button data-a="open" data-id="'+m.id+'">'+(s.done?'Abrir':'Continuar')+'</button><button data-a="rep" data-id="'+m.id+'">Súmula</button><button data-a="editm" data-id="'+m.id+'">Editar</button><button class="dn" data-a="rm" data-id="'+m.id+'">Excluir</button></div></div>'}).join(''):'<p class="mut">Nenhuma partida ainda. Crie a primeira para começar.</p>')+
-  pal()+'<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando.</p>';
+  pal()+'<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.3.0</p>';
 }
 function setup(){
   return '<div class="top"><h1>Nova partida</h1><button data-a="home">Voltar</button></div><form onsubmit="return false">'+
@@ -127,7 +138,7 @@ function setup(){
 }
 function live(){
   const m=cur,s=replay(m),shown=s.done&&!s.manual?s.sets[s.sets.length-1].sc:s.sc;
-  const side=i=>'<section class="side t'+i+'"><h2>'+esc(m.teams[i].name)+'</h2><div class="sc">'+shown[i]+'</div><div class="mut">Sets: <b>'+s.w[i]+'</b></div><button class="big pt'+i+'" data-a="pt" data-t="'+i+'"'+(s.done?' disabled':'')+'>+ PONTO</button><div class="row">'+toBtn(m,s,i)+'<button data-a="sub" data-t="'+i+'"'+(s.done?' disabled':'')+'>Subst.</button></div></section>';
+  const side=i=>'<section class="side t'+i+'"><h2>'+esc(m.teams[i].name)+'</h2><div class="sc">'+shown[i]+'</div><div class="mut">Sets: <b>'+s.w[i]+'</b></div><div class="mut" style="font-size:12px">Em quadra: '+courtShort(m,i)+'</div><button class="big pt'+i+'" data-a="pt" data-t="'+i+'"'+(s.done?' disabled':'')+'>+ PONTO</button><div class="row">'+toBtn(m,s,i)+'<button data-a="sub" data-t="'+i+'"'+(s.done?' disabled':'')+'>Subst.</button></div></section>';
   const win=s.w[0]>s.w[1]?0:1;
   return '<div class="top"><button data-a="home">‹ Início</button><div style="text-align:center"><b>'+esc(m.name)+'</b><div class="mut">'+(s.done?'Partida encerrada':'Set '+s.no+' · até '+target(m,s.no)+' (dif. '+m.rules.diff+')')+'</div></div><button data-a="rep" data-id="'+m.id+'">Súmula</button></div>'+
   (s.done?'<div class="ban">'+(s.manual?'Partida encerrada manualmente — sets '+s.w[0]+' × '+s.w[1]+(s.sc[0]||s.sc[1]?' (set interrompido '+s.sc[0]+'–'+s.sc[1]+')':''):'Fim! Vencedor: '+esc(m.teams[win].name)+' ('+s.w[win]+' sets a '+s.w[1-win]+')')+'</div><div class="bar">'+(s.manual?'<button data-a="reopen">Reabrir</button>':'')+'<button class="pri" data-a="restart">Reiniciar partida</button><button data-a="rep" data-id="'+m.id+'">Súmula</button></div>':'')+
@@ -151,7 +162,7 @@ function report(){
   '<h3>Maiores pontuadores</h3><div class="tw"><table><tr><th>#</th><th>Jogador</th><th>Equipe</th><th>Pontos</th></tr>'+(top.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.p)+'</td><td>'+esc(m.teams[x.t].name)+'</td><td><b>'+tot(x)+'</b></td></tr>').join('')||'<tr><td colspan="4" class="mut">Nenhum ponto com jogador identificado.</td></tr>')+'</table></div>'+
   '<h3>Jogadores</h3><div class="tw"><table><tr><th>Jogador</th><th>Equipe</th><th>Atq</th><th>Blq</th><th>Saq</th><th>Total</th><th>Erros</th></tr>'+(Object.values(pl).map(x=>'<tr><td>'+esc(x.p)+'</td><td>'+esc(m.teams[x.t].name)+'</td><td>'+x.attack+'</td><td>'+x.block+'</td><td>'+x.serve+'</td><td><b>'+tot(x)+'</b></td><td>'+x.x+'</td></tr>').join('')||'<tr><td colspan="7" class="mut">Nenhum jogador identificado.</td></tr>')+'</table></div>'+
   
-  [['to','Tempos técnicos'],['sub','Substituições'],['note','Observações']].map(([k,n])=>{const l=m.events.filter(e=>e.type===k);return '<h3>'+n+' ('+l.length+')</h3>'+(l.length?'<ul>'+l.map(e=>'<li>'+hm(e.t)+' · Set '+e.set+' ('+e.sc[0]+'–'+e.sc[1]+') · '+evText(e,m)+'</li>').join('')+'</ul>':'<p class="mut">Nenhum registro.</p>')}).join('')+'</div>';
+  [['to','Tempos técnicos'],['sub','Substituições'],['note','Observações']].map(([k,n])=>{const l=m.events.filter(e=>e.type===k);return '<h3>'+n+' ('+(k==='sub'?l.filter(e=>e.kind!=='libero').length+' comuns, '+l.filter(e=>e.kind==='libero').length+' de líbero':l.length)+')</h3>'+(l.length?'<ul>'+l.map(e=>'<li>'+hm(e.t)+' · Set '+e.set+' ('+e.sc[0]+'–'+e.sc[1]+') · '+evText(e,m)+'</li>').join('')+'</ul>':'<p class="mut">Nenhum registro.</p>')}).join('')+'</div>';
 }
 /* ---- Formulário compartilhado: nova partida e edição ---- */
 const POS6=['Levantador','Ponteiro (rede2)','Central','Oposto','Ponteiro (rede3)','Líbero'],POS7=['Levantador','Ponteiro (rede2)','Central','Oposto','Ponteiro (rede3)','Central','Líbero'];
@@ -162,13 +173,23 @@ try{setPal(localStorage.getItem('setpoint:pal')||'')}catch(e){}
 const pal=()=>'<div class="pal"><span class="mut">Cores:</span>'+Object.entries(PAL).map(([k,v])=>'<button class="sw'+((document.documentElement.dataset.p||'')===k?' on':'')+'" title="'+v[2]+'" style="--c1:'+v[0]+';--c2:'+v[1]+'" data-a="pal" data-k="'+k+'"></button>').join('')+'</div>';
 /* tempos técnicos: limite por equipe por set (rules.to; 0 = sem tempos) */
 const toBtn=(m,s,i)=>{const L=m.rules.to==null?99:m.rules.to;if(!L)return'';const u=m.events.filter(e=>e.type==='to'&&e.team===i&&e.set===s.no).length;return '<button data-a="to" data-t="'+i+'"'+(s.done||u>=L?' disabled':'')+'>Tempo'+(L<99?' '+u+'/'+L:'')+'</button>'};
-const defRows=mode=>(mode===7?POS7:POS6).map((name,i)=>({n:String(i+1),name,l:name==='Líbero'}));
-const row=(p,i)=>'<div class="prow"'+(i==null?'':' data-i="'+i+'"')+'><input class="rn" inputmode="numeric" placeholder="Nº" value="'+esc(p.n)+'"><input class="rm" placeholder="Nome" value="'+esc(p.name)+'"><label class="lc"><input type="checkbox" class="rl"'+(p.l?' checked':'')+'> Líb.</label><button type="button" data-a="prm">✕</button></div>';
+const defRows=mode=>(mode===7?POS7:POS6).map((name,i)=>({n:String(i+1),name,l:name==='Líbero',s:mode===7?i<6:true}));
+const row=(p,i)=>'<div class="prow"'+(i==null?'':' data-i="'+i+'"')+'><input class="rn" inputmode="numeric" placeholder="Nº" value="'+esc(p.n)+'"><input class="rm" placeholder="Nome" value="'+esc(p.name)+'"><label class="lc"><input type="checkbox" class="rl"'+(p.l?' checked':'')+'> Líb.</label><label class="lc"><input type="checkbox" class="rs"'+(p.s?' checked':'')+'> Tit.</label><button type="button" data-a="prm">✕</button></div>';
 const rosterBox=k=>'<div><label>Jogadores — equipe '+k.toUpperCase()+'</label><div id="r'+k+'"></div><button type="button" data-a="padd" data-k="'+k+'" style="width:100%;margin-top:6px">+ Jogador</button></div>';
 const fillRows=(k,ps)=>{$('#r'+k).innerHTML=ps.map((p,i)=>row(p,i)).join('')};
-const rd=k=>[...document.querySelectorAll('#r'+k+' .prow')].map(r=>({i:r.dataset.i,n:r.querySelector('.rn').value.trim(),name:r.querySelector('.rm').value.trim(),l:r.querySelector('.rl').checked})).filter(p=>p.n||p.name).map(p=>({...p,name:p.name||'Jogador '+p.n}));
-const clean=a=>a.map(({n,name,l})=>({n,name,l}));
+const rd=k=>[...document.querySelectorAll('#r'+k+' .prow')].map(r=>({i:r.dataset.i,n:r.querySelector('.rn').value.trim(),name:r.querySelector('.rm').value.trim(),l:r.querySelector('.rl').checked,s:r.querySelector('.rs').checked})).filter(p=>p.n||p.name).map(p=>({...p,name:p.name||'Jogador '+p.n}));
+const clean=a=>a.map(({n,name,l,s})=>({n,name,l,s}));
 const readRules=()=>{const g=id=>Math.max(1,parseInt($(id).value)||1),sw=g('#f_sw'),pts=g('#f_pts');return{setsToWin:sw,pts,diff:g('#f_df'),decPts:sw>1?g('#f_dp'):pts,libServe:$('#f_mode').value==='6',to:+$('#f_to').value}};
+/* valida as equipes antes de iniciar/salvar: retorna lista de problemas (vazia = ok) */
+function validate(names,rows,rules){const err=[],mode=rules.libServe?6:7,need=rules.libServe?6:7;
+  if(names[0]&&names[0].trim().toLowerCase()===(names[1]||'').trim().toLowerCase())err.push('As equipes precisam ter nomes diferentes.');
+  [0,1].forEach(t=>{const nm=names[t]||'Equipe '+'AB'[t],P=rows[t],seen=new Set(),nums=new Set();
+    if(P.length<need)err.push(nm+': cadastre pelo menos '+need+' jogadores'+(rules.libServe?'.':' (6 titulares + líbero).'));
+    P.forEach(p=>{const k=lbl(p).toLowerCase();if(seen.has(k))err.push(nm+': jogador repetido ('+lbl(p)+').');seen.add(k);if(p.n){if(nums.has(p.n))err.push(nm+': o número '+p.n+' está em mais de um jogador.');nums.add(p.n)}});
+    if(P.filter(p=>p.l).length>maxLib(P.length,mode))err.push(nm+': líberos demais para a quantidade de jogadores.');
+    const s=P.filter(p=>p.s).length;if(s!==6)err.push(nm+': marque exatamente 6 jogadores em quadra (Tit.). Agora há '+s+'.')});
+  return[...new Set(err)]}
+const showErr=er=>openM('<h3>Corrija antes de continuar</h3><ul>'+er.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><button class="big" data-a="close2">Entendi</button>');
 function syncDp(){const w=$('#dpw');if(w)w.style.display=(parseInt($('#f_sw').value)||1)<=1?'none':''}
 function resetDefaults(){if(view!=='setup')return;const ok=new Set([...POS6,...POS7,'']);if(['a','b'].every(k=>rd(k).every(p=>ok.has(p.name)))){const d=defRows(+$('#f_mode').value);['a','b'].forEach(k=>fillRows(k,d));syncLib()}}
 /* máx. de líberos: 6 jogadores = 1; cada jogador extra (banco) libera mais um */
@@ -179,7 +200,7 @@ function initForm(){
   $('#f_name').value=m?m.name:'';$('#f_ta').value=m?m.teams[0].name:'Equipe A';$('#f_tb').value=m?m.teams[1].name:'Equipe B';
   if(r){$('#f_sw').value=r.setsToWin;$('#f_pts').value=r.pts;$('#f_df').value=r.diff;$('#f_dp').value=r.decPts;$('#f_pre').value='c'}
   $('#f_mode').value=r?(r.libServe?'6':'7'):'6';$('#f_to').value=r&&r.to!=null?String(r.to):'2';
-  ['a','b'].forEach((k,i)=>fillRows(k,m?m.teams[i].players:defRows(6)));syncDp();syncLib();
+  ['a','b'].forEach((k,i)=>fillRows(k,m?withS(m,i):defRows(6)));syncDp();syncLib();
 }
 const editView=()=>setup().replace('Nova partida','Editar partida').replace('data-a="home">Voltar','data-a="back">Voltar').replace('data-a="create">Iniciar partida','data-a="saveedit">Salvar alterações');
 let wl=null;const keepAwake=async()=>{try{if(view==='live'&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}};
@@ -191,7 +212,7 @@ const go=v=>{closeM();view=v;render();window.scrollTo(0,0)};
 function openSkill(){openM('<h3>'+esc(cur.teams[flow.team].name)+': como foi o ponto?</h3><div class="grid">'+Object.keys(SK).map(k=>'<button class="big" data-a="sk" data-k="'+k+'">'+SK[k]+'</button>').join('')+'</div>')}
 function openPlayers(){
   const err=flow.skill==='error',t=err?1-flow.team:flow.team;
-  openM('<h3>'+(err?'Quem errou? ('+esc(cur.teams[t].name)+')':'Quem fez o ponto?')+'</h3><div class="grid">'+roster(t,flow.skill).map(p=>'<button class="big" data-a="pl" data-p="'+esc(p)+'">'+esc(p)+'</button>').join('')+'<button class="big" data-a="pl" data-p="">Não identificar</button></div>');
+  openM('<h3>'+(err?'Quem errou? ('+esc(cur.teams[t].name)+')':'Quem fez o ponto?')+'</h3><div class="grid">'+roster(t,flow.skill,!!flow.edit).map(p=>'<button class="big" data-a="pl" data-p="'+esc(p)+'">'+esc(p)+'</button>').join('')+'<button class="big" data-a="pl" data-p="">Não identificar</button></div>');
 }
 function endModal(){const s=replay(cur),w=s.w[0]>s.w[1]?0:1;openM('<h3>Partida encerrada</h3><p>'+(s.manual?'Encerrada manualmente. Sets: '+s.w[0]+' × '+s.w[1]+'.':'<b>'+esc(cur.teams[w].name)+'</b> venceu por '+s.w[w]+' sets a '+s.w[1-w]+'.')+'<br>Duração: '+dur(elapsed(s))+'</p><div class="grid"><button class="big pri" data-a="restart">Reiniciar</button><button class="big" data-a="rep" data-id="'+cur.id+'">Ver súmula</button><button class="big" data-a="home">Tela inicial</button><button class="big" data-a="close2">Fechar</button></div><p class="mut">Reiniciar começa outra partida com as mesmas equipes, jogadores e regras. Esta continua salva na tela inicial.</p>')}
 function commit(p,lib){const was=replay(cur).done;
@@ -212,12 +233,12 @@ document.addEventListener('click',ev=>{
   else if(a==='rep'){cur=find(d.id);flow.from=view;go('report')}
   else if(a==='back')go('live');
   else if(a==='endm')openM('<h3>Encerrar partida agora?</h3><p>A partida fica marcada como encerrada com o placar atual. Você pode reabrir depois.</p><div class="grid"><button class="big pri" data-a="endok">Encerrar</button><button class="big" data-a="close2">Cancelar</button></div>');
-  else if(a==='endok'){cur.ended=Date.now();save();closeM();render();endModal()}
-  else if(a==='reopen'){cur.ended=null;save();render()}
+  else if(a==='endok'){cur.events.push({id:uid(),type:'end',t:Date.now()});save();closeM();render();endModal()}
+  else if(a==='reopen'){const i=cur.events.map(e=>e.type).lastIndexOf('end');if(i>=0)cur.events.splice(i,1);save();render()}
   else if(a==='editm'){if(d.id)cur=find(d.id);go('edit')}
   else if(a==='padd'){$('#r'+d.k).insertAdjacentHTML('beforeend',row({n:'',name:'',l:false}));syncLib()}
   else if(a==='prm'){el.closest('.prow').remove();syncLib()}
-  else if(a==='saveedit'){
+  else if(a==='saveedit'){const er=validate([$('#f_ta').value.trim(),$('#f_tb').value.trim()],[rd('a'),rd('b')],readRules());if(er.length)return showErr(er);
     /* renomear jogador: reescreve o nome nos eventos já registrados da mesma equipe */
     const map=[{},{}];
     [0,1].forEach(t=>{const old=cur.teams[t].players,nw=rd(t?'b':'a');
@@ -236,6 +257,7 @@ document.addEventListener('click',ev=>{
     const m={id:uid(),created:Date.now(),name:$('#f_name').value.trim()||'Partida '+new Date().toLocaleDateString('pt-BR'),
       teams:[{name:$('#f_ta').value.trim()||'Equipe A',players:clean(rd('a'))},{name:$('#f_tb').value.trim()||'Equipe B',players:clean(rd('b'))}],
       rules:readRules(),events:[]};
+    {const er=validate(m.teams.map(t=>t.name),m.teams.map(t=>t.players),m.rules);if(er.length)return showErr(er)}
     DB.matches.push(m);save();cur=m;go('live');
   }
   else if(a==='pt'){flow={team:+d.t};openSkill()}
@@ -248,8 +270,11 @@ document.addEventListener('click',ev=>{
   else if(a==='pal'){setPal(d.k);render()}
   else if(a==='exp'){const b=new Blob([JSON.stringify(DB)],{type:'application/json'}),u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download='setpoint-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
   else if(a==='imp')$('#impf').click();
-  else if(a==='sub'){flow={team:+d.t};openM('<h3>Substituição — '+esc(cur.teams[+d.t].name)+'</h3><datalist id="dl">'+roster(+d.t).map(p=>'<option value="'+esc(p)+'">').join('')+'</datalist><label>Sai</label><input id="so" list="dl" placeholder="Nº ou nome"><label>Entra</label><input id="si" list="dl" placeholder="Nº ou nome"><button class="big pri" style="margin-top:12px" data-a="subok">Registrar</button>')}
-  else if(a==='subok')add({type:'sub',team:flow.team,out:$('#so').value.trim(),in:$('#si').value.trim()});
+  else if(a==='sub'){const t=+d.t,L=lineup(cur,t);
+    if(!L.bench.length){openM('<h3>Sem reservas</h3><p>Não há jogadores no banco desta equipe. Adicione jogadores em Editar.</p><button class="big" data-a="close2">Fechar</button>');return}
+    flow={team:t};const op=l=>l.map(x=>'<option>'+esc(x)+'</option>').join('');
+    openM('<h3>Substituição — '+esc(cur.teams[t].name)+'</h3><label>Sai da quadra</label><select id="so">'+op(L.court)+'</select><label>Entra</label><select id="si">'+op(L.bench)+'</select><button class="big pri" style="margin-top:12px" data-a="subok">Registrar</button>')}
+  else if(a==='subok'){const o=$('#so').value,i=$('#si').value,P=cur.teams[flow.team].players,lib=x=>P.some(p=>lbl(p)===x&&p.l);add({type:'sub',team:flow.team,out:o,in:i,kind:lib(o)||lib(i)?'libero':'normal'})}
   else if(a==='note')openM('<h3>Observação</h3><textarea id="nt" placeholder="Ex.: atleta com dor no joelho"></textarea><button class="big pri" style="margin-top:12px" data-a="noteok">Salvar</button>');
   else if(a==='noteok'){const t=$('#nt').value.trim();if(t)add({type:'note',text:t});else closeM()}
 });
