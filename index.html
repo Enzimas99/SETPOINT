@@ -15,7 +15,7 @@
 :root[data-theme="dark"]{--bg:#0b1020;--card:#151c33;--tx:#e8ecf8;--mut:#93a0c0;--bd:#26304f;--a:#5b8dff;--b:#ff5a5a;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0}
 body{background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100%}
-#app{max-width:980px;margin:0 auto;padding:12px}
+#app{max-width:980px;margin:0 auto;padding:12px 12px 36px}
 h1{margin:0;font-size:28px;letter-spacing:2px}h1 b{color:var(--a)}h2,h3{margin:.3em 0}
 .mut{color:var(--mut);font-size:14px}.row{display:flex;gap:8px;flex-wrap:wrap}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 14px;flex-wrap:wrap}
@@ -52,11 +52,14 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{bord
 .mc{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:14px;margin:10px 0}.mt{display:flex;justify-content:space-between;gap:8px;align-items:center}.pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--bd);white-space:nowrap}.pill.on{background:var(--ok);color:#fff;border-color:var(--ok)}
 .res{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:8px;margin:10px 0}.res .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.res .s{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}.mc .row button{flex:1;padding:10px 8px}
 #warn:not(:empty){position:fixed;top:0;left:0;right:0;z-index:20;background:var(--dn);color:#fff;padding:10px;padding-top:calc(10px + env(safe-area-inset-top,0px));text-align:center;font-weight:700;font-size:14px}
+#sync{position:fixed;left:8px;bottom:6px;font-size:11px;color:var(--mut);pointer-events:none;z-index:5;padding-bottom:env(safe-area-inset-bottom,0px)}
+.bad{color:var(--dn)}.okm{color:var(--ok)}button.lnk{background:none;border:0;color:var(--a);padding:6px 4px}
 .rg{display:grid;gap:14px}.prow{display:grid;grid-template-columns:60px 1fr auto auto auto;gap:6px;margin:6px 0;align-items:center}.prow button{padding:8px 12px}.prow .lc{display:flex;gap:4px;align-items:center;margin:0;font-size:13px;white-space:nowrap}.prow input[type=checkbox]{width:auto}
 @media(min-width:700px){.sheet{border-radius:20px;align-self:center}.rg{grid-template-columns:1fr 1fr}}
 @media print{.noprint{display:none!important}body{background:#fff;color:#000}.box,.card{border:1px solid #999}#app{max-width:none}}
 </style></head><body>
-<div id="warn"></div><div id="app"></div><div id="modal"></div>
+<div id="warn"></div><div id="app"></div><div id="modal"></div><div id="sync"></div>
+<script src="config.js"></script>
 <script>
 /* ============ SETPOINT v0.1 ============
  Arquitetura: o estado de uma partida é um REGISTRO DE EVENTOS (match.events).
@@ -65,19 +68,26 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{bord
  Camadas: Store (localStorage) → Regras (replay) → Views (HTML) → Ações (eventos de clique). */
 
 /* ---- Store: trocar por API/banco depois sem mexer nas views ---- */
-const KEY='setpoint:v1';let DB={matches:[]},cur=null,view='home',flow={};
-/* se o JSON local estiver corrompido, guarda uma cópia antes de qualquer novo salvamento */
-try{const raw=localStorage.getItem(KEY);if(raw)try{DB=JSON.parse(raw)||DB}catch(e){try{localStorage.setItem(KEY+':corrompido',raw)}catch(_){}document.getElementById('warn').textContent='⚠ Dados locais ilegíveis: uma cópia foi guardada. Importe um backup.'}}catch(e){}
-if(!Array.isArray(DB.matches))DB.matches=[];
-if(!Array.isArray(DB.teams))DB.teams=[];
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));$('#warn').textContent='';return true}catch(e){$('#warn').textContent='⚠ Não foi possível salvar neste aparelho (memória cheia ou modo privado). Exporte um backup agora.';return false}};
+const GUEST_KEY='setpoint:v1';
+let SES=null;try{SES=JSON.parse(localStorage.getItem('setpoint:auth'))}catch(e){}
+if(!(SES&&SES.user&&SES.refresh_token))SES=null;
+let KEY=SES?'setpoint:u:'+SES.user.id:GUEST_KEY,cur=null,view='home',flow={};
+function uid(){return Math.random().toString(36).slice(2,9)}
+/* carrega o armazenamento local de uma chave (sem conta ou de uma conta) e normaliza os registros */
+function loadDB(key){
+  let d={matches:[],teams:[]};
+  try{const raw=localStorage.getItem(key);if(raw)try{d=JSON.parse(raw)||d}catch(e){try{localStorage.setItem(key+':corrompido',raw)}catch(_){}document.getElementById('warn').textContent='⚠ Dados locais ilegíveis: uma cópia foi guardada. Importe um backup.'}}catch(e){}
+  if(!Array.isArray(d.matches))d.matches=[];if(!Array.isArray(d.teams))d.teams=[];
+  const s=d.sync=d.sync||{};s.dirty=s.dirty||{};s.dirty.matches=s.dirty.matches||{};s.dirty.teams=s.dirty.teams||{};s.del=s.del||[];s.last=s.last||{};
+  d.matches=d.matches.filter(m=>m&&m.id&&m.teams&&m.rules&&Array.isArray(m.events));
+  d.matches.forEach(m=>{if(m.ended){m.events.push({id:uid(),type:'end',t:m.ended});delete m.ended}});
+  d.teams=d.teams.filter(t=>t&&t.id&&Array.isArray(t.players));
+  return d}
+let DB=loadDB(KEY);
+function save(){try{track();localStorage.setItem(KEY,JSON.stringify(DB));$('#warn').textContent='';schedSync();return true}catch(e){$('#warn').textContent='⚠ Não foi possível salvar neste aparelho (memória cheia ou modo privado). Exporte um backup agora.';return false}}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const uid=()=>Math.random().toString(36).slice(2,9);
 /* migração: descarta registros inválidos e converte o antigo m.ended em evento 'end' */
-DB.matches=DB.matches.filter(m=>m&&m.teams&&m.rules&&Array.isArray(m.events));
-DB.matches.forEach(m=>{if(m.ended){m.events.push({id:uid(),type:'end',t:m.ended});delete m.ended}});
-DB.teams=DB.teams.filter(t=>t&&t.id&&Array.isArray(t.players));
 try{localStorage.removeItem('setpoint:pal')}catch(e){}
 const SK={attack:'Ataque',block:'Bloqueio',serve:'Saque',error:'Erro adversário'};
 const hm=t=>new Date(t).toLocaleTimeString('pt-BR');
@@ -124,9 +134,9 @@ const roster=(i,skill,all)=>{const on=all?null:lineup(cur,i).court;return cur.te
 function home(){
   const ms=[...DB.matches].reverse();
   return '<div class="hero"><h1>SET<b>POINT</b></h1><p>Súmula digital de vôlei — rápida, simples e pronta para a quadra.</p>'+
-  '<button class="big" data-a="new">+ Nova partida</button><button class="big ghost" data-a="teams">Criar e/ou adicionar equipes</button></div><h3>Partidas</h3>'+
+  '<button class="big" data-a="new">+ Nova partida</button><button class="big ghost" data-a="teams">Criar e/ou adicionar equipes</button></div>'+acctCard()+'<h3>Partidas</h3>'+
   (ms.length?ms.map(m=>{const s=replay(m);return '<div class="mc"><div class="mt"><b>'+esc(m.name)+'</b><span class="pill'+(s.done?'':' on')+'">'+(s.done?'Encerrada':'Em andamento')+'</span></div><div class="res"><span class="n" style="color:var(--a)">'+esc(m.teams[0].name)+'</span><span class="s">'+s.w[0]+' × '+s.w[1]+'</span><span class="n" style="color:var(--b)">'+esc(m.teams[1].name)+'</span></div><div class="mut">'+new Date(m.created).toLocaleString('pt-BR')+'</div><div class="row" style="margin-top:10px"><button data-a="open" data-id="'+m.id+'">'+(s.done?'Abrir':'Continuar')+'</button><button data-a="rep" data-id="'+m.id+'">Súmula</button><button data-a="editm" data-id="'+m.id+'">Editar</button><button class="dn" data-a="rm" data-id="'+m.id+'">Excluir</button></div></div>'}).join(''):'<p class="mut">Nenhuma partida ainda. Crie a primeira para começar.</p>')+
-  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.4.0</p>';
+  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.5.0</p>';
 }
 function setup(){
   return '<div class="top"><h1>Nova partida</h1><button data-a="home">Voltar</button></div><form onsubmit="return false">'+
@@ -220,10 +230,181 @@ function initForm(){
   $('#f_mode').value=R?(R.libServe?'6':'7'):'6';$('#f_to').value=R&&R.to!=null?String(R.to):'2';
   syncDp();syncLib();
 }
+/* ================= NUVEM (Supabase Auth + REST via fetch, sem bibliotecas) =================
+ Offline primeiro: o app sempre grava no aparelho; a nuvem é uma cópia sincronizada em segundo plano.
+ - Cada conta tem seu próprio armazenamento local (setpoint:u:<id>); sem conta usa setpoint:v1. Nada se mistura.
+ - save() detecta o que mudou (track) e marca como pendente (DB.sync.dirty / DB.sync.del).
+ - sync(): 1) baixa mudanças (pull)  2) envia pendências (push, upsert por user_id+id: não duplica).
+ - Conflito: vence a alteração mais recente (campo u, em ms). Exclusão = registro com deleted=true. */
+const CFG=window.SETPOINT_CFG||{},CLOUD=!!(CFG.url&&CFG.key);
+let SIG={},SY={busy:false,again:false,err:'',t:null,r401:false};
+const sig=x=>JSON.stringify(x,(k,v)=>(k==='sc'||k==='set')?undefined:v),SIGK=(k,x)=>k+':'+x.id;
+function initSigs(){SIG={};for(const k of['matches','teams'])for(const x of DB[k])SIG[SIGK(k,x)]=sig(x)}
+function track(){for(const k of['matches','teams'])for(const x of DB[k]){if(SIG[SIGK(k,x)]===sig(x))continue;x.u=Date.now();DB.sync.dirty[k][x.id]=1;SIG[SIGK(k,x)]=sig(x)}}
+function tomb(k,id){DB.sync.del=DB.sync.del.filter(d=>!(d.k===k&&d.id===id));DB.sync.del.push({k,id,u:Date.now()});delete DB.sync.dirty[k][id]}
+const pending=()=>Object.keys(DB.sync.dirty.matches).length+Object.keys(DB.sync.dirty.teams).length+DB.sync.del.length;
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
+
+/* ---- HTTP e sessão ---- */
+async function api(path,o={}){
+  const h={apikey:CFG.key,'Content-Type':'application/json',...(o.headers||{})};
+  if(o.auth!==false&&SES&&!h.Authorization)h.Authorization='Bearer '+SES.access_token;
+  const r=await fetch(CFG.url.replace(/\/$/,'')+path,{method:o.method||'GET',headers:h,body:o.body?JSON.stringify(o.body):undefined});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const e=new Error((j&&(j.msg||j.message||j.error_description||j.error))||('HTTP '+r.status));e.status=r.status;e.code=j&&(j.error_code||j.code);throw e}
+  return j;
+}
+const saveSes=s=>{SES=s;try{s?localStorage.setItem('setpoint:auth',JSON.stringify(s)):localStorage.removeItem('setpoint:auth')}catch(e){}};
+const mkSes=j=>({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||Math.floor(Date.now()/1000)+(j.expires_in||3600),user:{id:j.user.id,email:j.user.email,name:(j.user.user_metadata||{}).name||''}});
+/* renova o token quando faltam <60 s; só encerra a sessão se o servidor recusar o refresh (sem internet não desloga) */
+async function fresh(){
+  if(!SES)return false;
+  if(SES.expires_at-Date.now()/1000>60)return true;
+  try{const j=await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',auth:false,body:{refresh_token:SES.refresh_token}});saveSes(mkSes({...j,user:j.user||{id:SES.user.id,email:SES.user.email,user_metadata:{name:SES.user.name}}}));return true}
+  catch(e){if(e.status===400||e.status===401||e.status===403){forceOut();return false}throw e}
+}
+function authMsg(e){const c=e.code||'',m=(e.message||'').toLowerCase();
+  if(!e.status)return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+  if(c==='invalid_credentials'||m.includes('invalid login'))return 'E-mail ou senha incorretos.';
+  if(c==='email_not_confirmed'||m.includes('not confirmed'))return 'Confirme seu e-mail antes de entrar (veja a caixa de entrada e o spam).';
+  if(c==='user_already_exists'||m.includes('already registered'))return 'Este e-mail já tem conta. Use “Entrar” ou recupere a senha.';
+  if(c==='same_password')return 'Escolha uma senha diferente da anterior.';
+  if(e.status===429||c.includes('rate_limit'))return 'Muitas tentativas. Espere alguns minutos e tente de novo.';
+  if(c==='weak_password'||m.includes('password'))return 'Senha fraca: use pelo menos 6 caracteres.';
+  if(c==='validation_failed'||m.includes('email'))return 'Confira o e-mail digitado.';
+  return 'Não foi possível concluir ('+(c||e.status)+').';
+}
+
+/* ---- Conta ---- */
+async function signIn(email,pass){const j=await api('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:{email,password:pass}});await onLogin(mkSes(j))}
+async function signUp(name,email,pass){
+  const j=await api('/auth/v1/signup',{method:'POST',auth:false,body:{email,password:pass,data:{name}}});
+  if(j&&j.access_token){await onLogin(mkSes(j));return 'in'}
+  const u=(j&&j.user)||j||{};if(u.identities&&!u.identities.length)throw Object.assign(new Error('exists'),{status:400,code:'user_already_exists'});
+  return 'confirm';
+}
+const recover=email=>api('/auth/v1/recover?redirect_to='+encodeURIComponent(location.origin+location.pathname),{method:'POST',auth:false,body:{email}});
+async function newPassword(tok,pass){
+  const A={auth:false,headers:{Authorization:'Bearer '+tok}},u=await api('/auth/v1/user',A);
+  await api('/auth/v1/user',{...A,method:'PUT',body:{password:pass}});flow.rtok=null;await signIn(u.email,pass);
+}
+/* ao entrar: troca para o armazenamento da conta; se havia dados sem conta neste aparelho, pergunta se envia */
+async function onLogin(ses){
+  const guest=KEY===GUEST_KEY?DB:null,had=guest&&(guest.matches.length||guest.teams.length);
+  saveSes(ses);KEY='setpoint:u:'+ses.user.id;DB=loadDB(KEY);initSigs();cur=null;flow={am:null};
+  go('home');
+  if(had){flow.guest=guest;openM('<h3>Enviar dados deste aparelho?</h3><p>Há '+guest.matches.length+' partida(s) e '+guest.teams.length+' equipe(s) salvas neste aparelho sem conta. Deseja enviá-las para a conta <b>'+esc(ses.user.email)+'</b>?</p><div class="grid"><button class="big pri" data-a="adopt">Enviar para a conta</button><button class="big" data-a="keepg">Manter separado</button></div>')}
+  sync();
+}
+function toGuest(){saveSes(null);KEY=GUEST_KEY;DB=loadDB(KEY);initSigs();cur=null;flow={};go('home')}
+function forceOut(){toGuest();openM('<h3>Sessão expirada</h3><p>Entre de novo para voltar a sincronizar. Seus dados continuam guardados neste aparelho.</p><button class="big pri" data-a="am" data-m="in">Entrar</button>')}
+async function signOut(){if(navigator.onLine)await sync();if(SES&&navigator.onLine){try{await api('/auth/v1/logout?scope=local',{method:'POST'})}catch(e){}}toGuest()}
+/* links do e-mail (confirmação / recuperação de senha) chegam como #access_token=... */
+function readHash(){
+  const hs=(location.hash||'').slice(1);if(!CLOUD||!hs||!/access_token|error/.test(hs))return;
+  const p=new URLSearchParams(hs);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+  if(p.get('error_description')){flow.am='in';flow.amsg={t:'O link não funcionou ou expirou: '+p.get('error_description'),e:true};view='auth';return}
+  const tok=p.get('access_token');if(!tok)return;
+  if(p.get('type')==='recovery'){flow.am='new';flow.rtok=tok;view='auth';return}
+  api('/auth/v1/user',{auth:false,headers:{Authorization:'Bearer '+tok}}).then(u=>onLogin(mkSes({access_token:tok,refresh_token:p.get('refresh_token'),expires_at:+p.get('expires_at')||0,expires_in:+p.get('expires_in')||3600,user:u}))).catch(()=>{});
+}
+
+/* ---- Sincronização ---- */
+const abort=()=>Object.assign(new Error('abort'),{abort:true});
+function schedSync(ms){if(!CLOUD||!SES)return;clearTimeout(SY.t);SY.t=setTimeout(sync,ms||2500)}
+async function sync(){
+  if(!CLOUD||!SES)return;
+  if(SY.busy){SY.again=true;return}
+  if(!navigator.onLine){paintSync();return}
+  const my=KEY;SY.busy=true;SY.err='';paintSync();
+  try{
+    if(!(await fresh())||KEY!==my)return;
+    for(const k of['teams','matches'])await pull(k,my);
+    await push(my);
+    SY.r401=false;
+    if(cur){cur=DB.matches.find(x=>x.id===cur.id)||null;if(!cur&&view==='live')go('home')}
+    if(['home','teams'].includes(view)&&!$('#modal').innerHTML)render();
+  }catch(e){
+    if(!e.abort){SY.err=e.status?('Erro '+e.status):'rede';if(e.status===401&&!SY.r401){SY.r401=true;SES.expires_at=0;saveSes(SES);SY.again=true}}
+  }finally{persist();SY.busy=false;paintSync();if(SY.again){SY.again=false;schedSync(800)}}
+}
+function applyRow(k,r){
+  const arr=DB[k],i=arr.findIndex(x=>x.id===r.id),loc=arr[i],lu=loc?(loc.u||0):0,dirty=!!(loc&&DB.sync.dirty[k][r.id]);
+  const tb=DB.sync.del.find(d=>d.k===k&&d.id===r.id);
+  if(tb){if(tb.u>=r.client_updated)return;DB.sync.del=DB.sync.del.filter(d=>d!==tb)}
+  if(r.deleted){if(dirty&&lu>r.client_updated)return;if(i>=0)arr.splice(i,1);delete DB.sync.dirty[k][r.id];return}
+  if(loc&&lu>=r.client_updated)return;
+  const item={...r.data,id:r.id,u:r.client_updated};
+  if(i>=0)arr[i]=item;else arr.push(item);
+  SIG[SIGK(k,item)]=sig(item);delete DB.sync.dirty[k][r.id];
+}
+async function pull(k,my){
+  const last=DB.sync.last[k]||'1970-01-01T00:00:00+00:00';let off=0,max=last;
+  for(;;){
+    const rows=await api('/rest/v1/'+k+'?select=id,name,data,client_updated,deleted,updated_at&updated_at=gte.'+encodeURIComponent(last)+'&order=updated_at.asc,id.asc&limit=200&offset='+off);
+    if(KEY!==my)throw abort();
+    for(const r of rows){applyRow(k,r);if(r.updated_at>max)max=r.updated_at}
+    if(rows.length<200)break;off+=200;
+  }
+  DB.sync.last[k]=max;
+}
+async function push(my){
+  for(const k of['teams','matches']){
+    const rows=[],snap={};
+    for(const id of Object.keys(DB.sync.dirty[k])){const x=DB[k].find(y=>y.id===id);if(!x){delete DB.sync.dirty[k][id];continue}snap[id]=x.u;rows.push({user_id:SES.user.id,id,name:x.name||'',data:x,client_updated:x.u||0,deleted:false})}
+    for(const d of DB.sync.del.filter(d=>d.k===k))rows.push({user_id:SES.user.id,id:d.id,name:'',data:{},client_updated:d.u,deleted:true});
+    for(let i=0;i<rows.length;i+=10){
+      const part=rows.slice(i,i+10);
+      await api('/rest/v1/'+k+'?on_conflict=user_id,id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:part});
+      if(KEY!==my)throw abort();
+      for(const r of part){
+        if(r.deleted)DB.sync.del=DB.sync.del.filter(d=>!(d.k===k&&d.id===r.id));
+        else{const x=DB[k].find(y=>y.id===r.id);if(x&&x.u===snap[r.id])delete DB.sync.dirty[k][r.id]}
+      }
+      persist();
+    }
+  }
+}
+/* ---- Indicadores e telas da conta ---- */
+function syncText(){if(!SES)return'';const n=pending();return SY.busy?'Sincronizando…':!navigator.onLine?'Offline'+(n?' · '+n+' pendente(s)':''):SY.err?'Falha ao sincronizar'+(n?' · '+n+' pendente(s)':''):n?n+' aguardando envio':'Tudo sincronizado'}
+function paintSync(){const e=$('#sync');if(e)e.textContent=!CLOUD?'':SES?'☁ '+syncText():'Sem conta · dados só neste aparelho'}
+function acctCard(){
+  if(!CLOUD)return'';
+  if(!SES)return '<div class="mc"><div class="mt"><b>Conta</b></div><div class="mut">Entre para guardar equipes e partidas na nuvem e usar em outros aparelhos.</div><div class="row" style="margin-top:10px"><button class="pri" data-a="am" data-m="in">Entrar</button><button data-a="am" data-m="up">Criar conta</button></div></div>';
+  return '<div class="mc"><div class="mt"><b>Olá, '+esc(SES.user.name||SES.user.email)+'</b><span class="pill on">conectado</span></div><div class="mut">'+esc(syncText())+'</div><div class="row" style="margin-top:10px"><button data-a="syncnow">Sincronizar agora</button><button data-a="acct">Conta</button></div></div>';
+}
+function authView(){
+  const head='<div class="top"><h1>Conta</h1><button data-a="home">Voltar</button></div>';
+  if(!CLOUD)return head+'<div class="box"><b>Nuvem ainda não configurada</b><p class="mut">Preencha o arquivo config.js com a URL e a chave pública do seu projeto Supabase (passo a passo no README-NUVEM.md). Enquanto isso, o SETPOINT funciona normalmente, salvando só neste aparelho.</p></div>';
+  const m=flow.am||(SES?'acct':'in'),g=flow.amsg,msg='<p id="amsg" class="'+(g&&g.e?'bad':'okm')+'">'+esc(g?g.t:'')+'</p>';
+  const f=(id,l,t)=>'<label>'+l+'</label><input id="'+id+'" type="'+t+'" autocomplete="'+(t==='password'?(m==='up'||m==='new'?'new-password':'current-password'):t==='email'?'email':'name')+'">';
+  if(m==='acct'&&SES)return head+'<div class="box"><h3>'+esc(SES.user.name||'Minha conta')+'</h3><p class="mut">'+esc(SES.user.email)+'</p><p>'+esc(syncText())+'</p>'+msg+'<div class="row"><button class="pri" style="flex:1" data-a="syncnow">Sincronizar agora</button><button class="dn" style="flex:1" data-a="signout">Sair da conta</button></div><p class="mut">Equipes e partidas ficam neste aparelho e são copiadas para a nuvem quando há internet. Sem sinal, use o app normalmente.</p></div>';
+  const go1=(a,t)=>'<button class="big pri" style="margin-top:12px" data-a="'+a+'">'+t+'</button>';
+  const body={in:f('a_email','E-mail','email')+f('a_pass','Senha','password')+go1('doin','Entrar'),
+    up:f('a_name','Nome','text')+f('a_email','E-mail','email')+f('a_pass','Senha (mín. 6 caracteres)','password')+go1('doup','Criar conta'),
+    rec:f('a_email','E-mail da conta','email')+go1('dorec','Enviar link de recuperação'),
+    new:f('a_pass','Nova senha (mín. 6 caracteres)','password')+go1('donew','Salvar nova senha')}[m];
+  const lk=(m2,t)=>'<button type="button" class="lnk" data-a="am" data-m="'+m2+'">'+t+'</button>';
+  const links={in:lk('up','Criar conta')+lk('rec','Esqueci minha senha'),up:lk('in','Já tenho conta'),rec:lk('in','Voltar ao login'),new:''}[m];
+  return head+'<form class="box" onsubmit="return false"><h3>'+{in:'Entrar',up:'Criar conta',rec:'Recuperar senha',new:'Nova senha'}[m]+'</h3>'+body+msg+'<div class="row" style="margin-top:6px">'+links+'</div></form>';
+}
+async function authAct(a){
+  const v=id=>{const e=$(id);return e?e.value.trim():''},pass=$('#a_pass')?$('#a_pass').value:'';
+  const say=(t,e)=>{flow.amsg={t,e:!!e};const n=$('#amsg');if(n){n.textContent=t;n.className=e?'bad':'okm'}};
+  if(!navigator.onLine)return say('Sem internet. Entrar ou criar conta precisa de conexão; o app continua funcionando sem conta.',true);
+  const email=v('#a_email');
+  try{
+    if(a==='doin'){if(!email||!pass)return say('Informe e-mail e senha.',true);say('Entrando…');await signIn(email,pass)}
+    else if(a==='doup'){const name=v('#a_name');if(!name||!email)return say('Informe nome e e-mail.',true);if(pass.length<6)return say('A senha precisa ter pelo menos 6 caracteres.',true);say('Criando conta…');
+      if(await signUp(name,email,pass)==='confirm'){flow.am='in';flow.amsg={t:'Conta criada! Enviamos um e-mail de confirmação para '+email+'. Confirme e depois entre.',e:false};render()}}
+    else if(a==='dorec'){if(!email)return say('Informe o e-mail da conta.',true);say('Enviando…');await recover(email);say('Se esse e-mail tiver conta, enviamos um link para criar uma nova senha. Veja também o spam.')}
+    else if(a==='donew'){if(pass.length<6)return say('A senha precisa ter pelo menos 6 caracteres.',true);say('Salvando…');await newPassword(flow.rtok,pass)}
+  }catch(e){say(authMsg(e),true)}
+}
 const editView=()=>setup().replace('Nova partida','Editar partida').replace('data-a="home">Voltar','data-a="back">Voltar').replace('data-a="create">Iniciar partida','data-a="saveedit">Salvar alterações');
 let wl=null;const keepAwake=async()=>{try{if(view==='live'&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}};
 document.addEventListener('visibilitychange',keepAwake);
-function render(){$('#app').innerHTML={home,setup,live,report,edit:editView,teams:teamsView,team:teamView}[view]();if(['setup','edit','team'].includes(view))initForm();keepAwake()}
+function render(){$('#app').innerHTML={home,setup,live,report,edit:editView,teams:teamsView,team:teamView,auth:authView}[view]();if(['setup','edit','team'].includes(view))initForm();keepAwake();paintSync()}
 const go=v=>{closeM();view=v;render();window.scrollTo(0,0)};
 
 /* ---- Fluxo de ponto: equipe → fundamento → jogador ---- */
@@ -248,12 +429,20 @@ document.addEventListener('click',ev=>{
   if(a==='home'){cur=null;flow.draft=null;go('home')}
   else if(a==='new'){flow.draft=null;go('setup')}
   else if(a==='teams')go('teams');
+  else if(a==='acct'){flow.am=null;flow.amsg=null;go('auth')}
+  else if(a==='am'){flow.am=d.m;flow.amsg=null;go('auth')}
+  else if(a==='doin'||a==='doup'||a==='dorec'||a==='donew')authAct(a);
+  else if(a==='syncnow')sync();
+  else if(a==='signout'){if(pending()&&!navigator.onLine)openM('<h3>Sair da conta?</h3><p>Há '+pending()+' alteração(ões) ainda não enviadas. Elas ficam guardadas neste aparelho e serão enviadas quando você entrar de novo com internet.</p><div class="grid"><button class="big dn" data-a="signoutok">Sair</button><button class="big" data-a="close2">Cancelar</button></div>');else signOut()}
+  else if(a==='signoutok')signOut();
+  else if(a==='adopt'){const g=flow.guest;if(g){for(const k of['matches','teams'])for(const x of g[k])if(!DB[k].some(y=>y.id===x.id))DB[k].push(JSON.parse(JSON.stringify(x)));try{localStorage.setItem(GUEST_KEY,JSON.stringify({matches:[],teams:[]}))}catch(e){}flow.guest=null;save();closeM();render();sync()}}
+  else if(a==='keepg'){flow.guest=null;closeM()}
   else if(a==='tnew'){ED={id:null,back:'teams',side:null};go('team')}
   else if(a==='topen'){ED={id:d.id,back:'teams',side:null};go('team')}
   else if(a==='tback')go(ED.back||'teams');
   else if(a==='tdup'){const t=DB.teams.find(x=>x.id===d.id);if(t){let nm=t.name+' (cópia)',k=2;while(DB.teams.some(x=>x.name===nm))nm=t.name+' (cópia '+(k++)+')';DB.teams.push({...JSON.parse(JSON.stringify(t)),id:uid(),name:nm,created:Date.now(),updated:Date.now()});save();render()}}
   else if(a==='trm'){flow.rmt=d.id;openM('<h3>Excluir equipe?</h3><p>As partidas já jogadas não são afetadas: cada uma guarda a sua própria cópia da equipe.</p><div class="grid"><button class="big dn" data-a="trmok">Excluir</button><button class="big" data-a="close2">Cancelar</button></div>')}
-  else if(a==='trmok'){DB.teams=DB.teams.filter(x=>x.id!==flow.rmt);save();ED.id=null;if(view==='team')go('teams');else{closeM();render()}}
+  else if(a==='trmok'){tomb('teams',flow.rmt);DB.teams=DB.teams.filter(x=>x.id!==flow.rmt);save();ED.id=null;if(view==='team')go('teams');else{closeM();render()}}
   else if(a==='tsave'){
     const name=$('#t_name').value.trim(),P=rd('t'),er=[],seen=new Set(),nums=new Set();
     if(!name)er.push('Dê um nome à equipe.');
@@ -289,7 +478,7 @@ document.addEventListener('click',ev=>{
   else if(a==='restart'){const o=cur,m={id:uid(),created:Date.now(),name:o.name,teams:JSON.parse(JSON.stringify(o.teams)),rules:{...o.rules},events:[]};DB.matches.push(m);save();cur=m;go('live')}
   else if(a==='print')window.print();
   else if(a==='rm'){flow.rm=d.id;openM('<h3>Excluir partida?</h3><p>Esta ação não pode ser desfeita.</p><div class="row"><button data-a="rmok" class="dn">Excluir</button><button data-a="close2">Cancelar</button></div>')}
-  else if(a==='rmok'){DB.matches=DB.matches.filter(x=>x.id!==flow.rm);save();closeM();render()}
+  else if(a==='rmok'){tomb('matches',flow.rm);DB.matches=DB.matches.filter(x=>x.id!==flow.rm);save();closeM();render()}
   else if(a==='close2')closeM();
   else if(a==='create'){
     const ta=DB.teams.find(x=>x.id===$('#s_ta').value),tb=DB.teams.find(x=>x.id===$('#s_tb').value),er0=[];
@@ -309,7 +498,7 @@ document.addEventListener('click',ev=>{
   else if(a==='del'){cur.events=cur.events.filter(x=>x.id!==d.id);save();render()}
   else if(a==='undo'){cur.events.pop();save();render()}
   else if(a==='to'){if(!replay(cur).done)add({type:'to',team:+d.t})}
-  else if(a==='exp'){const b=new Blob([JSON.stringify(DB)],{type:'application/json'}),u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download='setpoint-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
+  else if(a==='exp'){const b=new Blob([JSON.stringify({app:'setpoint',v:2,matches:DB.matches,teams:DB.teams})],{type:'application/json'}),u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download='setpoint-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
   else if(a==='imp')$('#impf').click();
   else if(a==='sub'){const t=+d.t,L=lineup(cur,t);
     if(!L.bench.length){openM('<h3>Sem reservas</h3><p>Não há jogadores no banco desta equipe. Adicione jogadores em Editar.</p><button class="big" data-a="close2">Fechar</button>');return}
@@ -328,7 +517,11 @@ document.addEventListener('change',e=>{if(e.target.id==='s_ta'||e.target.id==='s
 /* importar backup: soma partidas novas (mesmo id não duplica) */
 document.addEventListener('change',e=>{if(e.target.id!=='impf'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||!Array.isArray(j.matches))throw 0;let n=0;j.matches.forEach(m=>{if(m&&m.id&&m.teams&&m.rules&&Array.isArray(m.events)&&!DB.matches.some(x=>x.id===m.id)){DB.matches.push(m);n++}});(Array.isArray(j.teams)?j.teams:[]).forEach(t=>{if(t&&t.id&&t.name&&Array.isArray(t.players)&&!DB.teams.some(x=>x.id===t.id))DB.teams.push(t)});save();render();openM('<h3>Backup importado</h3><p>'+n+' partida(s) adicionada(s).</p><button class="big pri" data-a="close2">OK</button>')}catch(x){openM('<h3>Arquivo inválido</h3><p>Escolha um backup exportado pelo SETPOINT.</p><button class="big" data-a="close2">Fechar</button>')}};r.readAsText(e.target.files[0])});
 setInterval(()=>{const c=$('#clk');if(c&&view==='live')c.textContent=dur(elapsed(replay(cur)))},1000);
-render();
+initSigs();readHash();render();
+addEventListener('online',()=>{paintSync();sync()});addEventListener('offline',paintSync);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+setInterval(()=>{if(!document.hidden)sync()},120000);
+if(SES)setTimeout(sync,800);
 /* PWA: service worker + pedido de armazenamento persistente */
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
