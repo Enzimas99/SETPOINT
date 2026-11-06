@@ -14,7 +14,7 @@ Você só faz isto UMA vez. Reserve uns 15 minutos.
 
 ## 3. Dizer ao Supabase qual é o endereço do app
 Menu **Authentication → URL Configuration**:
-- **Site URL**: o endereço do seu app, por exemplo `https://enzimas99.github.io/SETPOINT/setpoint-pwa/`
+- **Site URL**: o endereço EXATO do app, com a pasta, por exemplo `https://enzimas99.github.io/SETPOINT/setpoint-pwa/` (NÃO use só `https://enzimas99.github.io/`: esse endereço não tem site e dá "404 / Site not found").
 - **Redirect URLs**: adicione `https://enzimas99.github.io/**`
 Salve. (Sem isso, os links de e-mail de confirmação e de recuperação de senha não funcionam.)
 
@@ -53,3 +53,7 @@ Envie para a pasta `setpoint-pwa` do repositório os arquivos novos: `index.html
 ## Atenção
 - Projetos do plano gratuito do Supabase podem ser **pausados após cerca de uma semana sem uso**. Se isso acontecer, entre no painel e clique em restaurar/retomar o projeto (confira as regras atuais do plano). Os dados no aparelho continuam seguros.
 - Esqueceu a senha? Na tela de login, toque em "Esqueci minha senha".
+
+## Problemas comuns
+- **Link do e-mail abre "There isn't a GitHub Pages site here"**: o Site URL do passo 3 está apontando para a raiz. Corrija e peça um novo e-mail (links antigos continuam apontando para o lugar errado).
+- **"Link expirado ou inválido" (otp_expired)**: o link vale uma vez só, e alguns apps de e-mail o abrem automaticamente. Tente entrar com e-mail e senha; se pedir confirmação, toque em "Reenviar e-mail de confirmação" na tela de login.

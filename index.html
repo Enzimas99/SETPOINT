@@ -136,7 +136,7 @@ function home(){
   return '<div class="hero"><h1>SET<b>POINT</b></h1><p>Súmula digital de vôlei — rápida, simples e pronta para a quadra.</p>'+
   '<button class="big" data-a="new">+ Nova partida</button><button class="big ghost" data-a="teams">Criar e/ou adicionar equipes</button></div>'+acctCard()+'<h3>Partidas</h3>'+
   (ms.length?ms.map(m=>{const s=replay(m);return '<div class="mc"><div class="mt"><b>'+esc(m.name)+'</b><span class="pill'+(s.done?'':' on')+'">'+(s.done?'Encerrada':'Em andamento')+'</span></div><div class="res"><span class="n" style="color:var(--a)">'+esc(m.teams[0].name)+'</span><span class="s">'+s.w[0]+' × '+s.w[1]+'</span><span class="n" style="color:var(--b)">'+esc(m.teams[1].name)+'</span></div><div class="mut">'+new Date(m.created).toLocaleString('pt-BR')+'</div><div class="row" style="margin-top:10px"><button data-a="open" data-id="'+m.id+'">'+(s.done?'Abrir':'Continuar')+'</button><button data-a="rep" data-id="'+m.id+'">Súmula</button><button data-a="editm" data-id="'+m.id+'">Editar</button><button class="dn" data-a="rm" data-id="'+m.id+'">Excluir</button></div></div>'}).join(''):'<p class="mut">Nenhuma partida ainda. Crie a primeira para começar.</p>')+
-  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.5.0</p>';
+  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.5.1</p>';
 }
 function setup(){
   return '<div class="top"><h1>Nova partida</h1><button data-a="home">Voltar</button></div><form onsubmit="return false">'+
@@ -266,7 +266,7 @@ async function fresh(){
 function authMsg(e){const c=e.code||'',m=(e.message||'').toLowerCase();
   if(!e.status)return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
   if(c==='invalid_credentials'||m.includes('invalid login'))return 'E-mail ou senha incorretos.';
-  if(c==='email_not_confirmed'||m.includes('not confirmed'))return 'Confirme seu e-mail antes de entrar (veja a caixa de entrada e o spam).';
+  if(c==='email_not_confirmed'||m.includes('not confirmed'))return 'Confirme seu e-mail antes de entrar (veja a caixa de entrada e o spam). Se o link expirou, toque em “Reenviar e-mail de confirmação”.';
   if(c==='user_already_exists'||m.includes('already registered'))return 'Este e-mail já tem conta. Use “Entrar” ou recupere a senha.';
   if(c==='same_password')return 'Escolha uma senha diferente da anterior.';
   if(e.status===429||c.includes('rate_limit'))return 'Muitas tentativas. Espere alguns minutos e tente de novo.';
@@ -278,12 +278,13 @@ function authMsg(e){const c=e.code||'',m=(e.message||'').toLowerCase();
 /* ---- Conta ---- */
 async function signIn(email,pass){const j=await api('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:{email,password:pass}});await onLogin(mkSes(j))}
 async function signUp(name,email,pass){
-  const j=await api('/auth/v1/signup',{method:'POST',auth:false,body:{email,password:pass,data:{name}}});
+  const j=await api('/auth/v1/signup?redirect_to='+encodeURIComponent(location.origin+location.pathname),{method:'POST',auth:false,body:{email,password:pass,data:{name}}});
   if(j&&j.access_token){await onLogin(mkSes(j));return 'in'}
   const u=(j&&j.user)||j||{};if(u.identities&&!u.identities.length)throw Object.assign(new Error('exists'),{status:400,code:'user_already_exists'});
   return 'confirm';
 }
 const recover=email=>api('/auth/v1/recover?redirect_to='+encodeURIComponent(location.origin+location.pathname),{method:'POST',auth:false,body:{email}});
+const resend=email=>api('/auth/v1/resend?redirect_to='+encodeURIComponent(location.origin+location.pathname),{method:'POST',auth:false,body:{type:'signup',email}});
 async function newPassword(tok,pass){
   const A={auth:false,headers:{Authorization:'Bearer '+tok}},u=await api('/auth/v1/user',A);
   await api('/auth/v1/user',{...A,method:'PUT',body:{password:pass}});flow.rtok=null;await signIn(u.email,pass);
@@ -303,7 +304,7 @@ async function signOut(){if(navigator.onLine)await sync();if(SES&&navigator.onLi
 function readHash(){
   const hs=(location.hash||'').slice(1);if(!CLOUD||!hs||!/access_token|error/.test(hs))return;
   const p=new URLSearchParams(hs);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
-  if(p.get('error_description')){flow.am='in';flow.amsg={t:'O link não funcionou ou expirou: '+p.get('error_description'),e:true};view='auth';return}
+  if(p.get('error_description')){flow.am='in';flow.amsg={t:p.get('error_code')==='otp_expired'?'O link de confirmação expirou ou já foi usado. Se você já clicou nele, tente entrar normalmente; se não funcionar, toque em “Reenviar e-mail de confirmação”.':'O link não funcionou: '+p.get('error_description'),e:true};view='auth';return}
   const tok=p.get('access_token');if(!tok)return;
   if(p.get('type')==='recovery'){flow.am='new';flow.rtok=tok;view='auth';return}
   api('/auth/v1/user',{auth:false,headers:{Authorization:'Bearer '+tok}}).then(u=>onLogin(mkSes({access_token:tok,refresh_token:p.get('refresh_token'),expires_at:+p.get('expires_at')||0,expires_in:+p.get('expires_in')||3600,user:u}))).catch(()=>{});
@@ -385,7 +386,7 @@ function authView(){
     rec:f('a_email','E-mail da conta','email')+go1('dorec','Enviar link de recuperação'),
     new:f('a_pass','Nova senha (mín. 6 caracteres)','password')+go1('donew','Salvar nova senha')}[m];
   const lk=(m2,t)=>'<button type="button" class="lnk" data-a="am" data-m="'+m2+'">'+t+'</button>';
-  const links={in:lk('up','Criar conta')+lk('rec','Esqueci minha senha'),up:lk('in','Já tenho conta'),rec:lk('in','Voltar ao login'),new:''}[m];
+  const links={in:lk('up','Criar conta')+lk('rec','Esqueci minha senha')+'<button type="button" class="lnk" data-a="dores">Reenviar e-mail de confirmação</button>',up:lk('in','Já tenho conta'),rec:lk('in','Voltar ao login'),new:''}[m];
   return head+'<form class="box" onsubmit="return false"><h3>'+{in:'Entrar',up:'Criar conta',rec:'Recuperar senha',new:'Nova senha'}[m]+'</h3>'+body+msg+'<div class="row" style="margin-top:6px">'+links+'</div></form>';
 }
 async function authAct(a){
@@ -397,6 +398,7 @@ async function authAct(a){
     if(a==='doin'){if(!email||!pass)return say('Informe e-mail e senha.',true);say('Entrando…');await signIn(email,pass)}
     else if(a==='doup'){const name=v('#a_name');if(!name||!email)return say('Informe nome e e-mail.',true);if(pass.length<6)return say('A senha precisa ter pelo menos 6 caracteres.',true);say('Criando conta…');
       if(await signUp(name,email,pass)==='confirm'){flow.am='in';flow.amsg={t:'Conta criada! Enviamos um e-mail de confirmação para '+email+'. Confirme e depois entre.',e:false};render()}}
+    else if(a==='dores'){if(!email)return say('Digite seu e-mail acima e toque de novo.',true);say('Enviando…');await resend(email);say('Se esse e-mail tiver uma conta ainda não confirmada, enviamos um novo link. Abra-o no mesmo aparelho.')}
     else if(a==='dorec'){if(!email)return say('Informe o e-mail da conta.',true);say('Enviando…');await recover(email);say('Se esse e-mail tiver conta, enviamos um link para criar uma nova senha. Veja também o spam.')}
     else if(a==='donew'){if(pass.length<6)return say('A senha precisa ter pelo menos 6 caracteres.',true);say('Salvando…');await newPassword(flow.rtok,pass)}
   }catch(e){say(authMsg(e),true)}
@@ -431,7 +433,7 @@ document.addEventListener('click',ev=>{
   else if(a==='teams')go('teams');
   else if(a==='acct'){flow.am=null;flow.amsg=null;go('auth')}
   else if(a==='am'){flow.am=d.m;flow.amsg=null;go('auth')}
-  else if(a==='doin'||a==='doup'||a==='dorec'||a==='donew')authAct(a);
+  else if(a==='doin'||a==='doup'||a==='dorec'||a==='dores'||a==='donew')authAct(a);
   else if(a==='syncnow')sync();
   else if(a==='signout'){if(pending()&&!navigator.onLine)openM('<h3>Sair da conta?</h3><p>Há '+pending()+' alteração(ões) ainda não enviadas. Elas ficam guardadas neste aparelho e serão enviadas quando você entrar de novo com internet.</p><div class="grid"><button class="big dn" data-a="signoutok">Sair</button><button class="big" data-a="close2">Cancelar</button></div>');else signOut()}
   else if(a==='signoutok')signOut();
