@@ -3,25 +3,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SETPOINT</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1d4ed8">
+<meta name="theme-color" content="#071331">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SETPOINT">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
-:root{--bg:#f3f5f9;--card:#fff;--tx:#111827;--mut:#64748b;--bd:#dbe1ea;--a:#1d4ed8;--b:#dc2626;--ok:#16a34a;--dn:#dc2626;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1020;--card:#151c33;--tx:#e8ecf8;--mut:#93a0c0;--bd:#26304f;--a:#5b8dff;--b:#ff5a5a;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0b1020;--card:#151c33;--tx:#e8ecf8;--mut:#93a0c0;--bd:#26304f;--a:#5b8dff;--b:#ff5a5a;color-scheme:dark}
+:root{--bg:#f2f5fb;--card:#fff;--tx:#0a1633;--mut:#586a8f;--bd:#d3dbed;--a:#1d4ed8;--b:#d4202f;--af:#1d4ed8;--bf:#d4202f;--ok:#1d4ed8;--dn:#c8182a;--navy:#071331;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#071331;--card:#0d1f48;--tx:#f5f8ff;--mut:#a3b3d8;--bd:#1d3470;--a:#5b94ff;--b:#ff4b5c;--af:#2563eb;--bf:#e0243a;--ok:#2563eb;--dn:#ff5a6a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#071331;--card:#0d1f48;--tx:#f5f8ff;--mut:#a3b3d8;--bd:#1d3470;--a:#5b94ff;--b:#ff4b5c;--af:#2563eb;--bf:#e0243a;--ok:#2563eb;--dn:#ff5a6a;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0}
 body{background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100%}
 #app{max-width:980px;margin:0 auto;padding:12px 12px 36px}
-h1{margin:0;font-size:28px;letter-spacing:2px}h1 b{color:var(--a)}h2,h3{margin:.3em 0}
+h1{margin:0;font-size:28px;letter-spacing:2px}h1 b{color:var(--b)}h2,h3{margin:.3em 0}
 .mut{color:var(--mut);font-size:14px}.row{display:flex;gap:8px;flex-wrap:wrap}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 14px;flex-wrap:wrap}
 button,select,input,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px}
 button{cursor:pointer;font-weight:600}button:active{transform:scale(.97)}button:disabled{opacity:.4}
-button.pri{background:var(--a);color:#fff;border-color:var(--a)}button.dn{color:var(--dn)}
+button.pri{background:var(--af);color:#fff;border-color:var(--af)}button.dn{color:var(--dn)}
 button.big{width:100%;padding:18px;font-size:20px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;margin:10px 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
 form,.box{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px}
@@ -34,8 +35,8 @@ input,textarea,select{width:100%}textarea{min-height:110px}
 .side h2{font-size:clamp(15px,4vw,24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc{font-size:clamp(80px,26vw,200px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
 .t0 .sc{color:var(--a)}.t1 .sc{color:var(--b)}
-.pt0{background:var(--a);color:#fff;border-color:var(--a);margin:10px 0 8px;min-height:84px}
-.pt1{background:var(--b);color:#fff;border-color:var(--b);margin:10px 0 8px;min-height:84px}
+.pt0{background:var(--af);color:#fff;border-color:var(--af);margin:10px 0 8px;min-height:84px}
+.pt1{background:var(--bf);color:#fff;border-color:var(--bf);margin:10px 0 8px;min-height:84px}
 .side .row button{flex:1;padding:12px 6px}
 .bar{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}.bar button{flex:1}
 .chip{display:inline-block;background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:2px 10px;margin:2px;font-size:13px}
@@ -47,7 +48,7 @@ input,textarea,select{width:100%}textarea{min-height:110px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{border-bottom:1px solid var(--bd);padding:5px 6px;text-align:left}
 .tw{overflow-x:auto}
-.hero{background:linear-gradient(135deg,var(--a) 0%,var(--a) 65%,var(--b) 100%);color:#fff;border-radius:22px;padding:22px 18px;margin-bottom:14px}.hero h1{color:#fff;font-size:36px}.hero h1 b{opacity:.8;color:#fff}.hero p{margin:6px 0 16px;opacity:.92}.hero button{background:#fff;color:#111;border:0}.hero button.ghost{background:transparent;color:#fff;border:2px solid #fff;margin-top:8px}
+.hero{background:var(--navy);border-radius:22px;overflow:hidden;margin-bottom:14px;border:1px solid var(--bd)}.hero img{display:block;width:100%;height:auto}.hero .cta{padding:12px}.hero button{background:var(--bf);color:#fff;border:0}.hero button.ghost{background:transparent;color:#fff;border:2px solid #fff;margin-top:8px}
 @media(max-width:520px){.pk{grid-template-columns:1fr}}
 .mc{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:14px;margin:10px 0}.mt{display:flex;justify-content:space-between;gap:8px;align-items:center}.pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--bd);white-space:nowrap}.pill.on{background:var(--ok);color:#fff;border-color:var(--ok)}
 .res{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:8px;margin:10px 0}.res .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.res .s{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}.mc .row button{flex:1;padding:10px 8px}
@@ -133,10 +134,10 @@ const roster=(i,skill,all)=>{const on=all?null:lineup(cur,i).court;return cur.te
 /* ---- Views ---- */
 function home(){
   const ms=[...DB.matches].reverse();
-  return '<div class="hero"><h1>SET<b>POINT</b></h1><p>Súmula digital de vôlei — rápida, simples e pronta para a quadra.</p>'+
-  '<button class="big" data-a="new">+ Nova partida</button><button class="big ghost" data-a="teams">Criar e/ou adicionar equipes</button></div>'+acctCard()+'<h3>Partidas</h3>'+
+  return '<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"><div class="cta">'+
+  '<button class="big" data-a="new">+ Nova partida</button><button class="big ghost" data-a="teams">Criar e/ou adicionar equipes</button></div></div>'+acctCard()+'<h3>Partidas</h3>'+
   (ms.length?ms.map(m=>{const s=replay(m);return '<div class="mc"><div class="mt"><b>'+esc(m.name)+'</b><span class="pill'+(s.done?'':' on')+'">'+(s.done?'Encerrada':'Em andamento')+'</span></div><div class="res"><span class="n" style="color:var(--a)">'+esc(m.teams[0].name)+'</span><span class="s">'+s.w[0]+' × '+s.w[1]+'</span><span class="n" style="color:var(--b)">'+esc(m.teams[1].name)+'</span></div><div class="mut">'+new Date(m.created).toLocaleString('pt-BR')+'</div><div class="row" style="margin-top:10px"><button data-a="open" data-id="'+m.id+'">'+(s.done?'Abrir':'Continuar')+'</button><button data-a="rep" data-id="'+m.id+'">Súmula</button><button data-a="editm" data-id="'+m.id+'">Editar</button><button class="dn" data-a="rm" data-id="'+m.id+'">Excluir</button></div></div>'}).join(''):'<p class="mut">Nenhuma partida ainda. Crie a primeira para começar.</p>')+
-  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.5.1</p>';
+  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.6</p>';
 }
 function setup(){
   return '<div class="top"><h1>Nova partida</h1><button data-a="home">Voltar</button></div><form onsubmit="return false">'+
