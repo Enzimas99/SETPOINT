@@ -55,7 +55,11 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{bord
 #warn:not(:empty){position:fixed;top:0;left:0;right:0;z-index:20;background:var(--dn);color:#fff;padding:10px;padding-top:calc(10px + env(safe-area-inset-top,0px));text-align:center;font-weight:700;font-size:14px}
 #sync{position:fixed;left:8px;bottom:6px;font-size:11px;color:var(--mut);pointer-events:none;z-index:5;padding-bottom:env(safe-area-inset-bottom,0px)}
 .bad{color:var(--dn)}.okm{color:var(--ok)}button.lnk{background:none;border:0;color:var(--a);padding:6px 4px}
-.rg{display:grid;gap:14px}.prow{display:grid;grid-template-columns:60px 1fr auto auto auto;gap:6px;margin:6px 0;align-items:center}.prow button{padding:8px 12px}.prow .lc{display:flex;gap:4px;align-items:center;margin:0;font-size:13px;white-space:nowrap}.prow input[type=checkbox]{width:auto}
+.rg{display:grid;gap:14px}
+.sh{margin:16px 0 4px;font-size:12px;letter-spacing:1.5px;color:var(--mut)}.sh small{letter-spacing:0;font-weight:400}.rh{font-weight:800;margin-top:6px}
+.pr{display:grid;grid-template-columns:34px 52px 1fr 86px auto;gap:6px;align-items:center;margin:6px 0}.pr input,.pr select{padding:8px;width:100%;min-width:0}.pr button{padding:8px 11px}.pr.lb{grid-template-columns:34px 52px 1fr auto}.pr.vac{grid-template-columns:34px 1fr}
+.pb{display:inline-flex;align-items:center;justify-content:center;height:34px;border-radius:10px;background:var(--navy);color:#fff;font-weight:800;font-size:12px;border:1px solid var(--bd)}.pr.lb .pb{background:var(--bf);border-color:var(--bf)}.pr.rs .pb{background:var(--mut);border-color:var(--mut)}
+.row2{display:flex;gap:4px}.add{width:100%;margin-top:4px}.rst{padding:8px 10px;border-radius:10px;font-size:13px;font-weight:600;margin:8px 0}.rst.ok{background:rgba(37,99,235,.15);color:var(--a)}.rst.bad{background:rgba(220,38,38,.13);color:var(--dn)}
 @media(min-width:700px){.sheet{border-radius:20px;align-self:center}.rg{grid-template-columns:1fr 1fr}}
 @media print{.noprint{display:none!important}body{background:#fff;color:#000}.box,.card{border:1px solid #999}#app{max-width:none}}
 </style></head><body>
@@ -74,6 +78,22 @@ let SES=null;try{SES=JSON.parse(localStorage.getItem('setpoint:auth'))}catch(e){
 if(!(SES&&SES.user&&SES.refresh_token))SES=null;
 let KEY=SES?'setpoint:u:'+SES.user.id:GUEST_KEY,cur=null,view='home',flow={};
 function uid(){return Math.random().toString(36).slice(2,9)}
+/* ---- Modelo 5x1 ----
+ jogador: {n, name, fn:'lev|opo|pon|cen|lib', s:true se titular, pos:1-6 (so titular), l:true se libero}
+ Categorias exclusivas: titular | libero | reserva. */
+const FN={lev:'Levantador',opo:'Oposto',pon:'Ponteiro',cen:'Central'},FNS={lev:'Levant.',opo:'Oposto',pon:'Pont.',cen:'Central'},FNP={lev:'levantador(es)',opo:'oposto(s)',pon:'ponteiro(s)',cen:'central(is)'},NEED={lev:1,opo:1,pon:2,cen:2},PAT=['lev','pon','cen','opo','pon','cen'];
+const guessFn=n=>{const s=String(n||'').toLowerCase();return/levant/.test(s)?'lev':/opost/.test(s)?'opo':/ponteir/.test(s)?'pon':/central|meio/.test(s)?'cen':null};
+/* converte jogadores do formato antigo (sem funcao/posicao): 6 titulares em P1..P6 pela ordem, liberos separados, o resto vira reserva */
+function upgradePlayers(P){
+  if(P.every(p=>p.fn))return P.map(p=>({...p}));
+  const Q=P.map(p=>({...p}));
+  let tit=Q.filter(p=>p.s&&!p.l);if(!Q.some(p=>p.s!==undefined))tit=Q.filter(p=>!p.l);
+  tit=tit.slice(0,6);
+  Q.forEach(p=>{const i=tit.indexOf(p);if(p.fn)return;
+    if(p.l){p.fn='lib';p.s=false;delete p.pos}
+    else if(i>=0){p.s=true;p.pos=i+1;p.fn=guessFn(p.name)||PAT[i]}
+    else{p.s=false;delete p.pos;p.fn=guessFn(p.name)||'pon'}});
+  return Q}
 /* carrega o armazenamento local de uma chave (sem conta ou de uma conta) e normaliza os registros */
 function loadDB(key){
   let d={matches:[],teams:[]};
@@ -83,6 +103,7 @@ function loadDB(key){
   d.matches=d.matches.filter(m=>m&&m.id&&m.teams&&m.rules&&Array.isArray(m.events));
   d.matches.forEach(m=>{if(m.ended){m.events.push({id:uid(),type:'end',t:m.ended});delete m.ended}});
   d.teams=d.teams.filter(t=>t&&t.id&&Array.isArray(t.players));
+  d.teams.forEach(t=>{if(!t.players.every(p=>p.fn)){t.players=upgradePlayers(t.players);t.u=Date.now();s.dirty.teams[t.id]=1}});
   return d}
 let DB=loadDB(KEY);
 function save(){try{track();localStorage.setItem(KEY,JSON.stringify(DB));$('#warn').textContent='';schedSync();return true}catch(e){$('#warn').textContent='⚠ Não foi possível salvar neste aparelho (memória cheia ou modo privado). Exporte um backup agora.';return false}}
@@ -124,9 +145,8 @@ const closeM=()=>{$('#modal').innerHTML=''};
 /* líbero (p.l): não aparece em saque nem bloqueio */
 const lbl=p=>(p.n?'#'+p.n+' ':'')+p.name+(p.l?' (L)':'');
 /* ---- Escalação: titulares (p.s) + substituições do registro de eventos ---- */
-function starters(m,t){const P=m.teams[t].players;if(P.some(p=>p.s!==undefined))return P.filter(p=>p.s).map(lbl);return P.filter(p=>m.rules.libServe||!p.l).slice(0,6).map(lbl)}
+function starters(m,t){const P=m.teams[t].players;if(P.some(p=>p.pos!==undefined))return P.filter(p=>p.s).sort((a,b)=>a.pos-b.pos).map(lbl);if(P.some(p=>p.s!==undefined))return P.filter(p=>p.s).map(lbl);return P.filter(p=>m.rules.libServe||!p.l).slice(0,6).map(lbl)}
 function lineup(m,t){let court=starters(m,t);for(const e of m.events)if(e.type==='sub'&&e.team===t)court=court.map(x=>x===e.out?e.in:x);return{court,bench:m.teams[t].players.map(lbl).filter(x=>!court.includes(x))}}
-const withS=(m,t)=>{const st=starters(m,t);return m.teams[t].players.map(p=>({...p,s:st.includes(lbl(p))}))};
 const courtShort=(m,t)=>lineup(m,t).court.map(x=>(x.match(/^#\S+/)||[x])[0]).join(' ');
 /* regras do líbero: nunca bloqueia; só saca se a formação for de 6 (líbero saca). all=true ignora quem está em quadra (edição de registros) */
 const roster=(i,skill,all)=>{const on=all?null:lineup(cur,i).court;return cur.teams[i].players.filter(p=>!(p.l&&(skill==='block'||(skill==='serve'&&!cur.rules.libServe)))).map(lbl).filter(x=>!on||on.includes(x))};
@@ -137,7 +157,7 @@ function home(){
   return '<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"><div class="cta">'+
   '<button class="big" data-a="new">+ Nova partida</button><button class="big ghost" data-a="teams">Criar e/ou adicionar equipes</button></div></div>'+acctCard()+'<h3>Partidas</h3>'+
   (ms.length?ms.map(m=>{const s=replay(m);return '<div class="mc"><div class="mt"><b>'+esc(m.name)+'</b><span class="pill'+(s.done?'':' on')+'">'+(s.done?'Encerrada':'Em andamento')+'</span></div><div class="res"><span class="n" style="color:var(--a)">'+esc(m.teams[0].name)+'</span><span class="s">'+s.w[0]+' × '+s.w[1]+'</span><span class="n" style="color:var(--b)">'+esc(m.teams[1].name)+'</span></div><div class="mut">'+new Date(m.created).toLocaleString('pt-BR')+'</div><div class="row" style="margin-top:10px"><button data-a="open" data-id="'+m.id+'">'+(s.done?'Abrir':'Continuar')+'</button><button data-a="rep" data-id="'+m.id+'">Súmula</button><button data-a="editm" data-id="'+m.id+'">Editar</button><button class="dn" data-a="rm" data-id="'+m.id+'">Excluir</button></div></div>'}).join(''):'<p class="mut">Nenhuma partida ainda. Crie a primeira para começar.</p>')+
-  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.6</p>';
+  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.7</p>';
 }
 function setup(){
   return '<div class="top"><h1>Nova partida</h1><button data-a="home">Voltar</button></div><form onsubmit="return false">'+
@@ -146,7 +166,7 @@ function setup(){
   (view==='edit'?'<div class="rg">'+rosterBox('a')+rosterBox('b')+'</div><p class="mut">Estas alterações valem só para esta partida; a equipe salva não muda.</p>':'')+
   '<label>Regras</label><select id="f_pre"><option value="3,25,2,15">Melhor de 5</option><option value="2,25,2,15">Melhor de 3</option><option value="1,15,2,15">Set único (15 pts)</option><option value="c">Personalizada</option></select>'+
   '<div class="g4"><div><label>Sets p/ vencer</label><input id="f_sw" type="number" min="1" value="3"></div><div><label>Pontos do set</label><input id="f_pts" type="number" min="1" value="25"></div><div><label>Dif. mínima</label><input id="f_df" type="number" min="1" value="2"></div><div id="dpw"><label>Pts decisivo</label><input id="f_dp" type="number" min="1" value="15"></div></div>'+
-  '<label>Formação</label><select id="f_mode"><option value="6">6 Jogadores - Líbero Saca</option><option value="7">7 Jogadores - Líbero não saca</option></select>'+'<label>Tempos técnicos (por equipe, por set)</label><select id="f_to"><option value="0">Sem tempos</option><option value="1">1 tempo</option><option value="2" selected>2 tempos</option><option value="3">3 tempos</option></select>'+'<p class="mut">Sets para vencer: 3 = melhor de 5. O set decisivo usa pontuação própria (o campo some quando basta 1 set).</p>'+
+  '<label>Regra do líbero</label><select id="f_mode"><option value="6">Líbero saca (treino)</option><option value="7">Líbero não saca (regra oficial)</option></select>'+'<label>Tempos técnicos (por equipe, por set)</label><select id="f_to"><option value="0">Sem tempos</option><option value="1">1 tempo</option><option value="2" selected>2 tempos</option><option value="3">3 tempos</option></select>'+'<p class="mut">Sets para vencer: 3 = melhor de 5. O set decisivo usa pontuação própria (o campo some quando basta 1 set).</p>'+
   '<button class="big pri" data-a="create">Iniciar partida</button></form>';
 }
 function live(){
@@ -178,34 +198,55 @@ function report(){
   [['to','Tempos técnicos'],['sub','Substituições'],['note','Observações']].map(([k,n])=>{const l=m.events.filter(e=>e.type===k);return '<h3>'+n+' ('+(k==='sub'?l.filter(e=>e.kind!=='libero').length+' comuns, '+l.filter(e=>e.kind==='libero').length+' de líbero':l.length)+')</h3>'+(l.length?'<ul>'+l.map(e=>'<li>'+hm(e.t)+' · Set '+e.set+' ('+e.sc[0]+'–'+e.sc[1]+') · '+evText(e,m)+'</li>').join('')+'</ul>':'<p class="mut">Nenhum registro.</p>')}).join('')+'</div>';
 }
 /* ---- Formulário compartilhado: nova partida e edição ---- */
-const POS6=['Levantador','Ponteiro (rede2)','Central','Oposto','Ponteiro (rede3)','Líbero'],POS7=['Levantador','Ponteiro (rede2)','Central','Oposto','Ponteiro (rede3)','Central','Líbero'];
 /* tempos técnicos: limite por equipe por set (rules.to; 0 = sem tempos) */
 const toBtn=(m,s,i)=>{const L=m.rules.to==null?99:m.rules.to;if(!L)return'';const u=m.events.filter(e=>e.type==='to'&&e.team===i&&e.set===s.no).length;return '<button data-a="to" data-t="'+i+'"'+(s.done||u>=L?' disabled':'')+'>Tempo'+(L<99?' '+u+'/'+L:'')+'</button>'};
-const defRows=mode=>(mode===7?POS7:POS6).map((name,i)=>({n:String(i+1),name,l:name==='Líbero',s:mode===7?i<6:true}));
-const row=(p,i)=>'<div class="prow"'+(i==null?'':' data-i="'+i+'"')+'><input class="rn" inputmode="numeric" placeholder="Nº" value="'+esc(p.n)+'"><input class="rm" placeholder="Nome" value="'+esc(p.name)+'"><label class="lc"><input type="checkbox" class="rl"'+(p.l?' checked':'')+'> Líb.</label><label class="lc"><input type="checkbox" class="rs"'+(p.s?' checked':'')+'> Tit.</label><button type="button" data-a="prm">✕</button></div>';
-const rosterBox=k=>'<div><label>Jogadores'+(k==='t'?'':' — equipe '+k.toUpperCase())+'</label><div id="r'+k+'"></div><button type="button" data-a="padd" data-k="'+k+'" style="width:100%;margin-top:6px">+ Jogador</button></div>';
-const fillRows=(k,ps)=>{$('#r'+k).innerHTML=ps.map((p,i)=>row(p,i)).join('')};
-const rd=k=>[...document.querySelectorAll('#r'+k+' .prow')].map(r=>({i:r.dataset.i,n:r.querySelector('.rn').value.trim(),name:r.querySelector('.rm').value.trim(),l:r.querySelector('.rl').checked,s:r.querySelector('.rs').checked})).filter(p=>p.n||p.name).map(p=>({...p,name:p.name||'Jogador '+p.n}));
-const clean=a=>a.map(({n,name,l,s})=>({n,name,l,s}));
+/* ---- Equipe: TITULARES (P1-P6), LIBERO(S) e BANCO DE RESERVAS. Estado em RS; a tela e redesenhada a cada mudanca ---- */
+const POSN=['Levantador','Ponteiro (rede2)','Central','Oposto','Ponteiro (rede3)','Central'];
+const defRows=()=>POSN.map((name,i)=>({n:String(i+1),name,fn:PAT[i],s:true,pos:i+1,l:false})).concat([{n:'7',name:'Líbero',fn:'lib',s:false,l:true}]);
+const RS={a:[],b:[],t:[]};
+const fnSel=(k,i,v)=>'<select data-k="'+k+'" data-i="'+i+'" data-f="fn">'+Object.keys(FN).map(f=>'<option value="'+f+'"'+(v===f?' selected':'')+'>'+FNS[f]+'</option>').join('')+'</select>';
+const fld=(k,i,f,ph,v,im)=>'<input data-k="'+k+'" data-i="'+i+'" data-f="'+f+'" placeholder="'+ph+'"'+(im?' inputmode="numeric"':'')+' value="'+esc(v)+'">';
+const rd=k=>RS[k].map(p=>({i:p._o,n:String(p.n||'').trim(),name:String(p.name||'').trim(),fn:p.l?'lib':p.fn,pos:p.s?p.pos:undefined,s:!!p.s,l:!!p.l})).filter(p=>p.n||p.name).map(p=>({...p,name:p.name||'Jogador '+p.n}));
+const clean=a=>a.map(({n,name,fn,pos,s,l})=>{const o={n,name,fn,s:!!s,l:!!l};if(s)o.pos=pos;return o});
+/* regras da escalacao. strict=true exige a formacao 5x1 completa (necessario para iniciar partida) */
+function rosterErrors(P,strict){
+  const er=[],tit=P.filter(p=>p.s),pos=tit.map(p=>p.pos),nums=new Set(),names=new Set();
+  if(tit.length>6)er.push('Há '+tit.length+' titulares: o máximo é 6.');
+  if(new Set(pos).size!==pos.length)er.push('Duas pessoas estão na mesma posição.');
+  P.forEach(p=>{if(p.s&&p.l)er.push(lbl(p)+' não pode ser titular e líbero ao mesmo tempo.');
+    const k=lbl(p).toLowerCase();if(names.has(k))er.push('Jogador repetido: '+lbl(p)+'.');names.add(k);
+    if(p.n){if(nums.has(p.n))er.push('O número '+p.n+' está em mais de um jogador.');nums.add(p.n)}});
+  if(strict){const miss=[],extra=[];for(const f in NEED){const n=tit.filter(q=>q.fn===f).length;if(n<NEED[f])miss.push((NEED[f]-n)+' '+FNP[f]);if(n>NEED[f])extra.push((n-NEED[f])+' '+FNP[f])}
+    if(miss.length||extra.length)er.push('Formação 5x1 (1 levantador, 1 oposto, 2 ponteiros, 2 centrais): '+(miss.length?'faltam '+miss.join(', '):'')+(miss.length&&extra.length?'; ':'')+(extra.length?'sobram '+extra.join(', '):'')+'.')}
+  return er}
+const rosterStatus=P=>{const er=rosterErrors(clean(P.filter(p=>p.n||p.name)),true);return{ok:!er.length,t:er.length?'⚠ '+er[0]+(er.length>1?' (+'+(er.length-1)+')':''):'✓ Formação 5x1 completa'}};
+function rosterHtml(k){
+  const P=RS[k],ix=P.map((p,i)=>({p,i})),res=ix.filter(x=>!x.p.s&&!x.p.l),lib=ix.filter(x=>x.p.l),st=rosterStatus(P),full=[1,2,3,4,5,6].every(n=>P.some(p=>p.s&&p.pos===n));
+  const tit=[1,2,3,4,5,6].map(n=>{const x=ix.find(y=>y.p.s&&y.p.pos===n);
+    if(!x)return '<div class="pr vac"><span class="pb">P'+n+'</span><select data-k="'+k+'" data-rs="slot" data-pos="'+n+'"><option value="">Vago — escolher reserva…</option>'+res.map(r=>'<option value="'+r.i+'">'+esc(lbl(r.p))+' ('+FNS[r.p.fn]+')</option>').join('')+'<option value="new">+ Novo jogador</option></select></div>';
+    return '<div class="pr"><span class="pb">P'+n+'</span>'+fld(k,x.i,'n','Nº',x.p.n,1)+fld(k,x.i,'name','Nome',x.p.name)+fnSel(k,x.i,x.p.fn)+'<button type="button" data-a="rdem" data-k="'+k+'" data-i="'+x.i+'" title="Mandar para o banco">↓</button></div>'}).join('');
+  return '<div id="rs'+k+'" class="rst '+(st.ok?'ok':'bad')+'">'+esc(st.t)+'</div>'+
+   '<h4 class="sh">TITULARES <small>(6 · quem está em P1 saca)</small></h4>'+tit+
+   '<h4 class="sh">LÍBERO(S) <small>(não é titular)</small></h4>'+(lib.map(x=>'<div class="pr lb"><span class="pb">L</span>'+fld(k,x.i,'n','Nº',x.p.n,1)+fld(k,x.i,'name','Nome do líbero',x.p.name)+'<button type="button" data-a="rrm" data-k="'+k+'" data-i="'+x.i+'">✕</button></div>').join('')||'<p class="mut">Nenhum líbero.</p>')+'<button type="button" class="add" data-a="radd" data-k="'+k+'" data-t="lib">+ Líbero</button>'+
+   '<h4 class="sh">BANCO DE RESERVAS <small>('+res.length+' · disponíveis para substituição)</small></h4>'+(res.map(x=>'<div class="pr rs"><span class="pb">R</span>'+fld(k,x.i,'n','Nº',x.p.n,1)+fld(k,x.i,'name','Nome',x.p.name)+fnSel(k,x.i,x.p.fn)+'<span class="row2"><button type="button" data-a="rpro" data-k="'+k+'" data-i="'+x.i+'"'+(full?' disabled':'')+' title="'+(full?'Titulares completos (6)':'Promover a titular')+'">↑</button><button type="button" data-a="rrm" data-k="'+k+'" data-i="'+x.i+'">✕</button></span></div>').join('')||'<p class="mut">Nenhum reserva.</p>')+'<button type="button" class="add" data-a="radd" data-k="'+k+'" data-t="res">+ Reserva</button>';
+}
+const renderRoster=k=>{$('#r'+k).innerHTML=rosterHtml(k)};
+const fillRows=(k,ps)=>{RS[k]=ps.map((p,i)=>({...p,_o:i}));renderRoster(k)};
+function paintStatus(k){const e=$('#rs'+k);if(e){const s=rosterStatus(RS[k]);e.className='rst '+(s.ok?'ok':'bad');e.textContent=s.t}}
+function slotPick(k,pos,v){if(!v)return;const P=RS[k];if(v==='new')P.push({n:'',name:'',fn:PAT[pos-1],s:true,pos,l:false});else{const p=P[+v];if(p&&!p.s&&!p.l){p.s=true;p.pos=pos}}renderRoster(k)}
+const rosterBox=k=>'<div>'+(k==='t'?'':'<div class="rh">Equipe '+k.toUpperCase()+'</div>')+'<div id="r'+k+'"></div></div>';
 const readRules=()=>{const g=id=>Math.max(1,parseInt($(id).value)||1),sw=g('#f_sw'),pts=g('#f_pts');return{setsToWin:sw,pts,diff:g('#f_df'),decPts:sw>1?g('#f_dp'):pts,libServe:$('#f_mode').value==='6',to:+$('#f_to').value}};
 /* valida as equipes antes de iniciar/salvar: retorna lista de problemas (vazia = ok) */
-function validate(names,rows,rules){const err=[],mode=rules.libServe?6:7,need=rules.libServe?6:7;
+function validate(names,rows,rules){
+  const err=[];
   if(names[0]&&names[0].trim().toLowerCase()===(names[1]||'').trim().toLowerCase())err.push('As equipes precisam ter nomes diferentes.');
-  [0,1].forEach(t=>{const nm=names[t]||'Equipe '+'AB'[t],P=rows[t],seen=new Set(),nums=new Set();
-    if(P.length<need)err.push(nm+': cadastre pelo menos '+need+' jogadores'+(rules.libServe?'.':' (6 titulares + líbero).'));
-    P.forEach(p=>{const k=lbl(p).toLowerCase();if(seen.has(k))err.push(nm+': jogador repetido ('+lbl(p)+').');seen.add(k);if(p.n){if(nums.has(p.n))err.push(nm+': o número '+p.n+' está em mais de um jogador.');nums.add(p.n)}});
-    if(P.filter(p=>p.l).length>maxLib(P.length,mode))err.push(nm+': líberos demais para a quantidade de jogadores.');
-    const s=P.filter(p=>p.s).length;if(s!==6)err.push(nm+': marque exatamente 6 jogadores em quadra (Tit.). Agora há '+s+'.')});
+  [0,1].forEach(t=>rosterErrors(rows[t],true).forEach(x=>err.push((names[t]||'Equipe '+'AB'[t])+': '+x)));
   return[...new Set(err)]}
 const showErr=er=>openM('<h3>Corrija antes de continuar</h3><ul>'+er.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><button class="big" data-a="close2">Entendi</button>');
 function syncDp(){const w=$('#dpw');if(w)w.style.display=(parseInt($('#f_sw').value)||1)<=1?'none':''}
-function resetDefaults(){if(view!=='team'||ED.id)return;const ok=new Set([...POS6,...POS7,'']);if(rd('t').every(p=>ok.has(p.name))){fillRows('t',defRows(+$('#f_mode').value));syncLib()}}
-/* máx. de líberos: 6 jogadores = 1; cada jogador extra (banco) libera mais um */
-const maxLib=(n,mode)=>Math.max(1,n-(mode===7?6:5));
-function syncLib(){const mode=+(($('#f_mode')||{}).value)||6;['a','b','t'].forEach(k=>{const box=$('#r'+k);if(!box)return;const rs=[...box.querySelectorAll('.prow')],c=rs.filter(r=>r.querySelector('.rl').checked).length,full=c>=maxLib(rs.length,mode);rs.forEach(r=>{const cb=r.querySelector('.rl');cb.disabled=full&&!cb.checked})})}
 /* ---- Equipes salvas (DB.teams). A partida guarda uma COPIA da equipe: editar a equipe depois nao altera partidas antigas ---- */
 let ED={id:null,back:'teams',side:null};
-const teamInfo=t=>{const P=t.players,tit=P.filter(p=>p.s).length,L=P.filter(p=>p.l).length;return P.length+' jogadores'+(tit?' · '+tit+' titulares':'')+(L?' · '+L+' líbero(s)':'')};
+const teamInfo=t=>{const P=upgradePlayers(t.players),ok=rosterErrors(P,true).length===0;return P.filter(p=>p.s).length+' titulares · '+P.filter(p=>p.l).length+' líbero(s) · '+P.filter(p=>!p.s&&!p.l).length+' reserva(s) · '+(ok?'formação 5x1 ✓':'⚠ formação incompleta')};
 const sortedTeams=()=>[...DB.teams].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
 const teamOpts=()=>'<option value="">Escolher equipe…</option>'+sortedTeams().map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('')+'<option value="__new">+ Criar nova equipe</option>';
 const teamPick=()=>'<div class="g2 pk"><div><label style="color:var(--a)">Equipe A (lado esquerdo)</label><select id="s_ta">'+teamOpts()+'</select><div class="mut" id="s_pa"></div></div><div><label style="color:var(--b)">Equipe B (lado direito)</label><select id="s_tb">'+teamOpts()+'</select><div class="mut" id="s_pb"></div></div></div>'+(DB.teams.length?'':'<p class="mut">Você ainda não tem equipes salvas. Escolha “+ Criar nova equipe” ou use “Criar e/ou adicionar equipes” na tela inicial.</p>');
@@ -216,20 +257,19 @@ function teamsView(){
   (DB.teams.length?sortedTeams().map(t=>'<div class="mc"><div class="mt"><b>'+esc(t.name)+'</b></div><div class="mut">'+teamInfo(t)+'</div><div class="row" style="margin-top:10px"><button data-a="topen" data-id="'+t.id+'">Abrir</button><button data-a="tdup" data-id="'+t.id+'">Duplicar</button><button class="dn" data-a="trm" data-id="'+t.id+'">Excluir</button></div></div>').join(''):'<p class="mut">Nenhuma equipe salva ainda. Crie uma para reutilizá-la em várias partidas.</p>');
 }
 function teamView(){
-  return '<div class="top"><h1>'+(ED.id?'Equipe':'Nova equipe')+'</h1><button data-a="tback">Voltar</button></div><form onsubmit="return false"><label>Nome da equipe</label><input id="t_name" placeholder="Ex.: Time A"><label>Modelo de jogadores</label><select id="f_mode"><option value="6">6 Jogadores - Líbero Saca</option><option value="7">7 Jogadores - Líbero não saca</option></select><p class="mut">Só define o modelo inicial e o limite de líberos. A formação de cada partida é escolhida ao iniciá-la.</p>'+rosterBox('t')+
-  '<p class="mut">Nº = camisa (opcional). Marque “Líb.” no líbero e “Tit.” nos 6 titulares (sem nenhum marcado, o app usa os 6 primeiros). Reservas ficam sem marcação.</p><button class="big pri" data-a="tsave">Salvar equipe</button>'+(ED.id?'<button class="big dn" style="margin-top:8px" data-a="trm" data-id="'+ED.id+'">Excluir equipe</button>':'')+'</form>';
+  return '<div class="top"><h1>'+(ED.id?'Equipe':'Nova equipe')+'</h1><button data-a="tback">Voltar</button></div><form onsubmit="return false"><label>Nome da equipe</label><input id="t_name" placeholder="Ex.: Time A"><p class="mut">Formação 5x1: 1 levantador, 1 oposto, 2 ponteiros e 2 centrais, nas posições P1 a P6. O líbero fica separado e nunca é titular. Quem não é titular nem líbero fica no banco de reservas.</p>'+rosterBox('t')+'<button class="big pri" style="margin-top:14px" data-a="tsave">Salvar equipe</button>'+(ED.id?'<button class="big dn" style="margin-top:8px" data-a="trm" data-id="'+ED.id+'">Excluir equipe</button>':'')+'</form>';
 }
-function initTeam(){const t=ED.id?DB.teams.find(x=>x.id===ED.id):null;$('#t_name').value=t?t.name:'';$('#f_mode').value='6';fillRows('t',t?t.players.map(p=>({...p})):defRows(6));syncLib()}
+function initTeam(){const t=ED.id?DB.teams.find(x=>x.id===ED.id):null;$('#t_name').value=t?t.name:'';fillRows('t',t?upgradePlayers(t.players):defRows())}
 function initForm(){
   if(view==='team')return initTeam();
   const e=view==='edit',m=e?cur:null,dr=flow.draft||{};
   $('#f_name').value=m?m.name:(dr.name||'');
-  if(e){$('#f_ta').value=m.teams[0].name;$('#f_tb').value=m.teams[1].name;['a','b'].forEach((k,i)=>fillRows(k,withS(m,i)))}
+  if(e){$('#f_ta').value=m.teams[0].name;$('#f_tb').value=m.teams[1].name;['a','b'].forEach((k,i)=>fillRows(k,upgradePlayers(m.teams[i].players)))}
   else{['a','b'].forEach(k=>{$('#s_t'+k).value=dr[k]||''});updatePick()}
   const R=m?m.rules:(dr.sw?{setsToWin:dr.sw,pts:dr.pts,diff:dr.df,decPts:dr.dp,libServe:dr.mode==='6',to:+dr.to}:null);
   if(R){$('#f_sw').value=R.setsToWin;$('#f_pts').value=R.pts;$('#f_df').value=R.diff;$('#f_dp').value=R.decPts;$('#f_pre').value=m?'c':(dr.pre||'c')}
-  $('#f_mode').value=R?(R.libServe?'6':'7'):'6';$('#f_to').value=R&&R.to!=null?String(R.to):'2';
-  syncDp();syncLib();
+  $('#f_mode').value=R?(R.libServe?'6':'7'):'7';$('#f_to').value=R&&R.to!=null?String(R.to):'2';
+  syncDp();
 }
 /* ================= NUVEM (Supabase Auth + REST via fetch, sem bibliotecas) =================
  Offline primeiro: o app sempre grava no aparelho; a nuvem é uma cópia sincronizada em segundo plano.
@@ -336,7 +376,7 @@ function applyRow(k,r){
   if(tb){if(tb.u>=r.client_updated)return;DB.sync.del=DB.sync.del.filter(d=>d!==tb)}
   if(r.deleted){if(dirty&&lu>r.client_updated)return;if(i>=0)arr.splice(i,1);delete DB.sync.dirty[k][r.id];return}
   if(loc&&lu>=r.client_updated)return;
-  const item={...r.data,id:r.id,u:r.client_updated};
+  const item={...r.data,id:r.id,u:r.client_updated};if(k==='teams'&&Array.isArray(item.players)&&!item.players.every(p=>p.fn))item.players=upgradePlayers(item.players);
   if(i>=0)arr[i]=item;else arr.push(item);
   SIG[SIGK(k,item)]=sig(item);delete DB.sync.dirty[k][r.id];
 }
@@ -447,15 +487,13 @@ document.addEventListener('click',ev=>{
   else if(a==='trm'){flow.rmt=d.id;openM('<h3>Excluir equipe?</h3><p>As partidas já jogadas não são afetadas: cada uma guarda a sua própria cópia da equipe.</p><div class="grid"><button class="big dn" data-a="trmok">Excluir</button><button class="big" data-a="close2">Cancelar</button></div>')}
   else if(a==='trmok'){tomb('teams',flow.rmt);DB.teams=DB.teams.filter(x=>x.id!==flow.rmt);save();ED.id=null;if(view==='team')go('teams');else{closeM();render()}}
   else if(a==='tsave'){
-    const name=$('#t_name').value.trim(),P=rd('t'),er=[],seen=new Set(),nums=new Set();
+    const name=$('#t_name').value.trim(),P=rd('t'),er=[];
     if(!name)er.push('Dê um nome à equipe.');
     if(DB.teams.some(t=>t.id!==ED.id&&t.name.trim().toLowerCase()===name.toLowerCase()))er.push('Já existe uma equipe com esse nome.');
     if(!P.length)er.push('Adicione pelo menos um jogador.');
-    P.forEach(p=>{const k=lbl(p).toLowerCase();if(seen.has(k))er.push('Jogador repetido: '+lbl(p)+'.');seen.add(k);if(p.n){if(nums.has(p.n))er.push('O número '+p.n+' está em mais de um jogador.');nums.add(p.n)}});
-    const tit=P.filter(p=>p.s).length;if(tit&&tit!==6)er.push('Marque exatamente 6 titulares (ou nenhum). Agora há '+tit+'.');
-    if(P.filter(p=>p.l).length>maxLib(P.length,+$('#f_mode').value))er.push('Líberos demais para a quantidade de jogadores.');
+    er.push(...rosterErrors(clean(P),false));
     if(er.length)return showErr([...new Set(er)]);
-    const pl=clean(P).map(p=>tit?p:{n:p.n,name:p.name,l:p.l});
+    const pl=clean(P);
     let t=ED.id&&DB.teams.find(x=>x.id===ED.id);
     if(t){t.name=name;t.players=pl;t.updated=Date.now()}else{t={id:uid(),name,players:pl,created:Date.now(),updated:Date.now()};DB.teams.push(t)}
     save();ED.id=t.id;
@@ -468,8 +506,10 @@ document.addEventListener('click',ev=>{
   else if(a==='endok'){cur.events.push({id:uid(),type:'end',t:Date.now()});save();closeM();render();endModal()}
   else if(a==='reopen'){const i=cur.events.map(e=>e.type).lastIndexOf('end');if(i>=0)cur.events.splice(i,1);save();render()}
   else if(a==='editm'){if(d.id)cur=find(d.id);go('edit')}
-  else if(a==='padd'){$('#r'+d.k).insertAdjacentHTML('beforeend',row({n:'',name:'',l:false}));syncLib()}
-  else if(a==='prm'){el.closest('.prow').remove();syncLib()}
+  else if(a==='rdem'){const p=RS[d.k][+d.i];p.s=false;delete p.pos;renderRoster(d.k)}
+  else if(a==='rpro'){const P=RS[d.k],used=new Set(P.filter(x=>x.s).map(x=>x.pos)),pos=[1,2,3,4,5,6].find(n=>!used.has(n));if(pos){const p=P[+d.i];p.s=true;p.pos=pos}renderRoster(d.k)}
+  else if(a==='radd'){RS[d.k].push(d.t==='lib'?{n:'',name:'',fn:'lib',s:false,l:true}:{n:'',name:'',fn:'pon',s:false,l:false});renderRoster(d.k)}
+  else if(a==='rrm'){RS[d.k].splice(+d.i,1);renderRoster(d.k)}
   else if(a==='saveedit'){const er=validate([$('#f_ta').value.trim(),$('#f_tb').value.trim()],[rd('a'),rd('b')],readRules());if(er.length)return showErr(er);
     /* renomear jogador: reescreve o nome nos eventos já registrados da mesma equipe */
     const map=[{},{}];
@@ -487,9 +527,8 @@ document.addEventListener('click',ev=>{
     const ta=DB.teams.find(x=>x.id===$('#s_ta').value),tb=DB.teams.find(x=>x.id===$('#s_tb').value),er0=[];
     if(!ta)er0.push('Escolha a Equipe A.');if(!tb)er0.push('Escolha a Equipe B.');if(ta&&ta===tb)er0.push('Escolha duas equipes diferentes.');
     if(er0.length)return showErr(er0);
-    const snap=t=>({name:t.name,teamId:t.id,players:JSON.parse(JSON.stringify(t.players))});
+    const snap=t=>({name:t.name,teamId:t.id,players:upgradePlayers(JSON.parse(JSON.stringify(t.players)))});
     const m={id:uid(),created:Date.now(),name:$('#f_name').value.trim()||ta.name+' × '+tb.name,teams:[snap(ta),snap(tb)],rules:readRules(),events:[]};
-    m.teams.forEach((t,i)=>{t.players=withS(m,i)});
     const er=validate(m.teams.map(t=>t.name),m.teams.map(t=>t.players),m.rules);
     if(er.length)return showErr(er.map(x=>x+' (ajuste em “Criar e/ou adicionar equipes”)'));
     flow.draft=null;DB.matches.push(m);save();cur=m;go('live');
@@ -516,9 +555,10 @@ document.addEventListener('change',e=>{
   const [s,p,d,x]=e.target.value.split(',');$('#f_sw').value=s;$('#f_pts').value=p;$('#f_df').value=d;$('#f_dp').value=x;
 });
 document.addEventListener('input',e=>{if(e.target.id==='f_sw')syncDp()});
-document.addEventListener('change',e=>{if(e.target.id==='s_ta'||e.target.id==='s_tb'){if(e.target.value==='__new'){flow.draft=draft();ED={id:null,back:'setup',side:e.target.id==='s_ta'?'a':'b'};go('team')}else updatePick()}if(e.target.id==='f_pre')syncDp();if(e.target.id==='f_mode')resetDefaults();if(e.target.id==='f_mode'||e.target.classList.contains('rl'))syncLib()});
+document.addEventListener('input',e=>{const ds=e.target.dataset||{};if(ds.f==='n'||ds.f==='name'){RS[ds.k][+ds.i][ds.f]=e.target.value;paintStatus(ds.k)}});
+document.addEventListener('change',e=>{const ds=e.target.dataset||{};if(ds.rs==='slot'){slotPick(ds.k,+ds.pos,e.target.value);return}if(ds.f==='fn'){RS[ds.k][+ds.i].fn=e.target.value;renderRoster(ds.k);return}if(e.target.id==='s_ta'||e.target.id==='s_tb'){if(e.target.value==='__new'){flow.draft=draft();ED={id:null,back:'setup',side:e.target.id==='s_ta'?'a':'b'};go('team')}else updatePick()}if(e.target.id==='f_pre')syncDp();});
 /* importar backup: soma partidas novas (mesmo id não duplica) */
-document.addEventListener('change',e=>{if(e.target.id!=='impf'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||!Array.isArray(j.matches))throw 0;let n=0;j.matches.forEach(m=>{if(m&&m.id&&m.teams&&m.rules&&Array.isArray(m.events)&&!DB.matches.some(x=>x.id===m.id)){DB.matches.push(m);n++}});(Array.isArray(j.teams)?j.teams:[]).forEach(t=>{if(t&&t.id&&t.name&&Array.isArray(t.players)&&!DB.teams.some(x=>x.id===t.id))DB.teams.push(t)});save();render();openM('<h3>Backup importado</h3><p>'+n+' partida(s) adicionada(s).</p><button class="big pri" data-a="close2">OK</button>')}catch(x){openM('<h3>Arquivo inválido</h3><p>Escolha um backup exportado pelo SETPOINT.</p><button class="big" data-a="close2">Fechar</button>')}};r.readAsText(e.target.files[0])});
+document.addEventListener('change',e=>{if(e.target.id!=='impf'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||!Array.isArray(j.matches))throw 0;let n=0;j.matches.forEach(m=>{if(m&&m.id&&m.teams&&m.rules&&Array.isArray(m.events)&&!DB.matches.some(x=>x.id===m.id)){DB.matches.push(m);n++}});(Array.isArray(j.teams)?j.teams:[]).forEach(t=>{if(t&&t.id&&t.name&&Array.isArray(t.players)&&!DB.teams.some(x=>x.id===t.id))DB.teams.push({...t,players:upgradePlayers(t.players)})});save();render();openM('<h3>Backup importado</h3><p>'+n+' partida(s) adicionada(s).</p><button class="big pri" data-a="close2">OK</button>')}catch(x){openM('<h3>Arquivo inválido</h3><p>Escolha um backup exportado pelo SETPOINT.</p><button class="big" data-a="close2">Fechar</button>')}};r.readAsText(e.target.files[0])});
 setInterval(()=>{const c=$('#clk');if(c&&view==='live')c.textContent=dur(elapsed(replay(cur)))},1000);
 initSigs();readHash();render();
 addEventListener('online',()=>{paintSync();sync()});addEventListener('offline',paintSync);
