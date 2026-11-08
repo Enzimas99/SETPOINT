@@ -138,11 +138,11 @@ function replay(m){
   mk();
   /* LIBERO AUTOMATICO (rules.libAuto): o libero ocupa o lugar do central que esta no fundo (P1, P6 ou P5) e sai quando ele chega a rede.
      Nao saca (salvo regra de treino) e so entra depois do 1o ponto do set. Tudo e derivado do historico: desfazer restaura sozinho. */
-  const auto=m.rules.libAuto===true,libLog=[],fnm=[0,1].map(t=>{const o={};m.teams[t].players.forEach(p=>{o[lbl(p)]=p.fn});return o});
+  const auto=m.rules.libAuto===true,libLog=[],act=[0,1].map(t=>{const L=m.teams[t].players.find(p=>p.l);return L?lbl(L):null}),isLibL=(t,x)=>m.teams[t].players.some(p=>p.l&&lbl(p)===x),fnm=[0,1].map(t=>{const o={};m.teams[t].players.forEach(p=>{o[lbl(p)]=p.fn});return o});
   const autoLib=(t,e)=>{
     if(!slots||!auto||pts===0)return;
-    const L=m.teams[t].players.find(p=>p.l);if(!L)return;
-    const ll=lbl(L),sl=slots[t],txt=[];
+    const ll=act[t];if(!ll)return;
+    const sl=slots[t],txt=[];
     const back=[0,5,4].filter(i=>fnm[t][sl[i].t]==='cen'&&!(i===0&&serving===t&&!m.rules.libServe));   // centrais no fundo (o central da P1 que vai sacar fica)
     const cur=sl.findIndex(s=>s.on===ll),tg=back.length?(back.includes(cur)?cur:back[0]):-1;
     if(cur===tg)return;
@@ -160,9 +160,13 @@ function replay(m){
         if(w[t]>=r.setsToWin){done=true;end=e.t}
       }
     }else{e.sc=[...sc];if(e.type==='end'&&!done){done=true;manual=true;end=e.t}
-      if(slots){if(e.type==='sub'){applySub(slots[e.team],e,m);autoLib(e.team,e)}else if(e.type==='first'&&pts===0)serving=e.team}}
+      if(slots){if(e.type==='sub'){
+        if(auto&&isLibL(e.team,e.out)&&isLibL(e.team,e.in)){   // troca de um libero por outro libero (o libero ativo passa a ser o novo)
+          const sl=slots[e.team],i=sl.findIndex(s=>s.on===e.out);if(act[e.team]===e.out)act[e.team]=e.in;if(i>=0)sl[i].on=e.in;
+          libLog.push({team:e.team,set:no,sc:[...sc],dir:'troca',lib:e.in,tit:i>=0?sl[i].t:'',pos:i+1,txt:'Troca de líbero: sai '+e.out+', entra '+e.in+(i>=0?' (P'+(i+1)+')':' (estava no banco)')})}
+        else{applySub(slots[e.team],e,m);autoLib(e.team,e)}}else if(e.type==='first'&&pts===0)serving=e.team}}
   }
-  return{sc,no,w,sets,done,start,end,manual,slots,serving,pts,libLog};
+  return{sc,no,w,sets,done,start,end,manual,slots,serving,pts,libLog,act};
 }
 const evText=(e,m)=>evText0(e,m)+(e.al&&e.al.length?' · <i>'+e.al.map(esc).join(' · ')+'</i>':'');
 const evText0=(e,m)=>{const T=i=>esc(m.teams[i].name);
@@ -183,7 +187,8 @@ function lineup(m,t){
   const R=replay(m);let court;
   if(R.slots)court=R.slots[t].map(s=>s.on);   // P1..P6
   else{court=starters(m,t);for(const e of m.events)if(e.type==='sub'&&e.team===t)court=court.map(x=>x===e.out?e.in:x)}   // partidas antigas
-  return{court,bench:m.teams[t].players.map(lbl).filter(x=>!court.includes(x))}}
+  const tits=R.slots&&m.rules.libAuto===true?R.slots[t].map(s=>s.t):[];
+  return{court,bench:m.teams[t].players.map(lbl).filter(x=>!court.includes(x)&&!tits.includes(x))}}
 const courtShort=(m,t)=>lineup(m,t).court.map(x=>(x.match(/^#\S+/)||[x])[0]).join(' ');
 /* regras do líbero: nunca bloqueia; só saca se a formação for de 6 (líbero saca). all=true ignora quem está em quadra (edição de registros) */
 const roster=(i,skill,all)=>{const on=all?null:lineup(cur,i).court;
@@ -208,7 +213,7 @@ function home(){
   return '<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"><div class="cta">'+
   '<button class="big" data-a="new">+ Nova partida</button><button class="big ghost" data-a="teams">Criar e/ou adicionar equipes</button></div></div>'+acctCard()+'<h3>Partidas</h3>'+
   (ms.length?ms.map(m=>{const s=replay(m);return '<div class="mc"><div class="mt"><b>'+esc(m.name)+'</b><span class="pill'+(s.done?'':' on')+'">'+(s.done?'Encerrada':'Em andamento')+'</span></div><div class="res"><span class="n" style="color:var(--a)">'+esc(m.teams[0].name)+'</span><span class="s">'+s.w[0]+' × '+s.w[1]+'</span><span class="n" style="color:var(--b)">'+esc(m.teams[1].name)+'</span></div><div class="mut">'+new Date(m.created).toLocaleString('pt-BR')+'</div><div class="row" style="margin-top:10px"><button data-a="open" data-id="'+m.id+'">'+(s.done?'Abrir':'Continuar')+'</button><button data-a="rep" data-id="'+m.id+'">Súmula</button><button data-a="editm" data-id="'+m.id+'">Editar</button><button class="dn" data-a="rm" data-id="'+m.id+'">Excluir</button></div></div>'}).join(''):'<p class="mut">Nenhuma partida ainda. Crie a primeira para começar.</p>')+
-  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.9.1</p>';
+  '<div class="row" style="margin-top:12px"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut" style="text-align:center">Dados salvos neste aparelho. Faça backup de vez em quando. · v1.10</p>';
 }
 function setup(){
   return '<div class="top"><h1>Nova partida</h1><button data-a="home">Voltar</button></div><form onsubmit="return false">'+
@@ -607,12 +612,17 @@ document.addEventListener('click',ev=>{
   else if(a==='imp')$('#impf').click();
   else if(a==='sub'){
     const t=+d.t,R=replay(cur),auto=cur.rules.libAuto===true&&R.slots,isL=x=>cur.teams[t].players.some(p=>lbl(p)===x&&p.l);
-    const L=lineup(cur,t),bench=auto?L.bench.filter(x=>!isL(x)):L.bench;
-    if(!bench.length){openM('<h3>Sem reservas</h3><p>Não há jogadores disponíveis no banco desta equipe.'+(auto?' (O líbero entra e sai sozinho.)':'')+'</p><button class="big" data-a="close2">Fechar</button>');return}
-    flow={team:t};
-    const outs=R.slots?R.slots[t].map((s,i)=>auto&&s.on!==s.t?{v:s.t,x:s.t+' (líbero em quadra)',i}:{v:s.on,x:s.on,i}).filter(o=>!(auto&&isL(o.v))):L.court.map((x,i)=>({v:x,x,i}));
-    openM('<h3>Substituição — '+esc(cur.teams[t].name)+'</h3><label>Sai da quadra</label><select id="so">'+outs.map(o=>'<option value="'+esc(o.v)+'">'+(R.slots?'P'+(o.i+1)+' · ':'')+esc(o.x)+'</option>').join('')+'</select><label>Entra</label><select id="si">'+bench.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select><button class="big pri" style="margin-top:12px" data-a="subok">Registrar</button>'+(auto?'<p class="mut">Com líbero automático, o líbero entra e sai sozinho; aqui só há trocas comuns.</p>':''))}
-  else if(a==='subok'){const o=$('#so').value,i=$('#si').value,P=cur.teams[flow.team].players,lib=x=>P.some(p=>lbl(p)===x&&p.l);add({type:'sub',team:flow.team,out:o,in:i,kind:lib(o)||lib(i)?'libero':'normal'})}
+    const L=lineup(cur,t),libs=cur.teams[t].players.filter(p=>p.l).map(lbl),act=R.act?R.act[t]:null;
+    const benchN=auto?L.bench.filter(x=>!isL(x)):L.bench,benchL=auto?libs.filter(x=>x!==act):[],swap=!!(auto&&act&&benchL.length);
+    if(!benchN.length&&!swap){openM('<h3>Sem reservas</h3><p>Não há jogadores disponíveis no banco desta equipe.</p><button class="big" data-a="close2">Fechar</button>');return}
+    const outs=R.slots?R.slots[t].map((s,i)=>auto&&s.on!==s.t?{v:s.t,x:s.t+' (líbero em quadra)',i}:{v:s.on,x:s.on,i}).filter(o=>!(auto&&isL(o.v))).map(o=>({...o,p:'P'+(o.i+1)+' · '})):L.court.map(x=>({v:x,x,p:''}));
+    if(swap)outs.push({v:act,x:act+(L.court.includes(act)?' (em quadra)':' (no banco)'),p:'Líbero · '});
+    flow={team:t,sub:{benchN,benchL,act:swap?act:null}};
+    const opts=l=>l.length?l.map(x=>'<option>'+esc(x)+'</option>').join(''):'<option value="">Nenhum disponível</option>',lst=(swap&&outs[0].v===act)?benchL:benchN;
+    openM('<h3>Substituição — '+esc(cur.teams[t].name)+'</h3><label>Quem sai</label><select id="so">'+outs.map(o=>'<option value="'+esc(o.v)+'">'+o.p+esc(o.x)+'</option>').join('')+'</select><label>Quem entra</label><select id="si">'+opts(lst)+'</select><button class="big pri" style="margin-top:12px" data-a="subok">Registrar</button>'+(auto?'<p class="mut">Líbero automático: ele entra e sai sozinho. Aqui você faz trocas comuns e, havendo outro líbero cadastrado, a troca de líbero (escolha "Líbero" em Quem sai).</p>':''))}
+  else if(a==='subok'){const o=$('#so').value,i=$('#si').value;if(!i)return showErr(['Escolha quem entra: não há jogador disponível.']);
+    {const R2=replay(cur),sl2=R2.slots?R2.slots[flow.team]:null;if(sl2){const k=sl2.findIndex(s=>s.on===o||s.t===o),j=sl2.findIndex(s=>s.t===i);if(j>=0&&j!==k)return showErr([i+' já é titular em outra posição do rodízio.'])}}
+    const P=cur.teams[flow.team].players,lib=x=>P.some(p=>lbl(p)===x&&p.l);add({type:'sub',team:flow.team,out:o,in:i,kind:lib(o)||lib(i)?'libero':'normal'})}
   else if(a==='note')openM('<h3>Observação</h3><textarea id="nt" placeholder="Ex.: atleta com dor no joelho"></textarea><button class="big pri" style="margin-top:12px" data-a="noteok">Salvar</button>');
   else if(a==='noteok'){const t=$('#nt').value.trim();if(t)add({type:'note',text:t});else closeM()}
 });
@@ -622,7 +632,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('input',e=>{if(e.target.id==='f_sw')syncDp()});
 document.addEventListener('input',e=>{const ds=e.target.dataset||{};if(ds.f==='n'||ds.f==='name'){RS[ds.k][+ds.i][ds.f]=e.target.value;paintStatus(ds.k)}});
-document.addEventListener('change',e=>{const ds=e.target.dataset||{};if(ds.rs==='slot'){slotPick(ds.k,+ds.pos,e.target.value);return}if(ds.f==='fn'){RS[ds.k][+ds.i].fn=e.target.value;renderRoster(ds.k);return}if(e.target.id==='s_ta'||e.target.id==='s_tb'){if(e.target.value==='__new'){flow.draft=draft();ED={id:null,back:'setup',side:e.target.id==='s_ta'?'a':'b'};go('team')}else updatePick()}if(e.target.id==='f_pre')syncDp();});
+document.addEventListener('change',e=>{const ds=e.target.dataset||{};if(e.target.id==='so'&&flow.sub){const s=flow.sub,l=(s.act&&e.target.value===s.act)?s.benchL:s.benchN;$('#si').innerHTML=l.length?l.map(x=>'<option>'+esc(x)+'</option>').join(''):'<option value="">Nenhum disponível</option>';return}if(ds.rs==='slot'){slotPick(ds.k,+ds.pos,e.target.value);return}if(ds.f==='fn'){RS[ds.k][+ds.i].fn=e.target.value;renderRoster(ds.k);return}if(e.target.id==='s_ta'||e.target.id==='s_tb'){if(e.target.value==='__new'){flow.draft=draft();ED={id:null,back:'setup',side:e.target.id==='s_ta'?'a':'b'};go('team')}else updatePick()}if(e.target.id==='f_pre')syncDp();});
 /* importar backup: soma partidas novas (mesmo id não duplica) */
 document.addEventListener('change',e=>{if(e.target.id!=='impf'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||!Array.isArray(j.matches))throw 0;let n=0;j.matches.forEach(m=>{if(m&&m.id&&m.teams&&m.rules&&Array.isArray(m.events)&&!DB.matches.some(x=>x.id===m.id)){DB.matches.push(m);n++}});(Array.isArray(j.teams)?j.teams:[]).forEach(t=>{if(t&&t.id&&t.name&&Array.isArray(t.players)&&!DB.teams.some(x=>x.id===t.id))DB.teams.push({...t,players:upgradePlayers(t.players)})});save();render();openM('<h3>Backup importado</h3><p>'+n+' partida(s) adicionada(s).</p><button class="big pri" data-a="close2">OK</button>')}catch(x){openM('<h3>Arquivo inválido</h3><p>Escolha um backup exportado pelo SETPOINT.</p><button class="big" data-a="close2">Fechar</button>')}};r.readAsText(e.target.files[0])});
 setInterval(()=>{const c=$('#clk');if(c&&view==='live')c.textContent=dur(elapsed(replay(cur)))},1000);
