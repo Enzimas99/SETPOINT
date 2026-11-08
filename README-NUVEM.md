@@ -28,7 +28,9 @@ Em **Authentication** (aba de provedores/Sign In) → **Email**:
 1. Menu **Project Settings → API Keys** (ou "API").
 2. Copie a **Project URL** (algo como `https://abcdefgh.supabase.co`).
 3. Copie a **Publishable key** (começa com `sb_publishable_`; em projetos mais antigos pode ser a chave `anon`).
-4. No GitHub, abra o arquivo `config.js`, clique no lápis, cole os dois valores entre as aspas e faça **Commit changes**.
+4. Escolha UMA forma de informar os dois valores:
+   - **Pelo app (mais fácil):** na tela inicial, no cartão "Conta e nuvem", toque em "Configurar nuvem / Entrar", cole a URL e a chave e toque em "Salvar e ativar". Vale para aquele aparelho; repita nos outros.
+   - **Pelo GitHub (vale para todos os aparelhos):** crie na pasta `setpoint-pwa` um arquivo `config.js` (copie o `config.example.js`), cole os dois valores entre as aspas e faça **Commit changes**. Os zips do SETPOINT não trazem mais o `config.js`, então ele nunca será sobrescrito.
 
 IMPORTANTE: use só a chave **publishable/anon** (pública por desenho, protegida pelas regras do passo 2). NUNCA cole a chave **secret** ou **service_role** no `config.js`.
 
