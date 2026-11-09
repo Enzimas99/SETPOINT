@@ -65,7 +65,7 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{bord
 @media(min-width:700px){.sheet{border-radius:20px;align-self:center}.rg{grid-template-columns:1fr 1fr}}
 @media print{.noprint{display:none!important}body{background:#fff;color:#000}.box,.card{border:1px solid #999}#app{max-width:none}}
 
-/* ===== v1.11: interface ===== */
+/* ===== v1.12: interface ===== */
 :root{--sh:0 1px 2px rgba(7,19,49,.06),0 6px 18px rgba(7,19,49,.08)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--sh:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35)}}
 :root[data-theme="dark"]{--sh:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35)}
@@ -113,7 +113,7 @@ details.more{margin:20px 0 4px}details.more summary{cursor:pointer;color:var(--m
 .cell.lb{border-style:dashed;border-color:var(--tc)}.cell.lb b{font-style:italic}
 .tag{position:absolute;top:2px;right:3px;font-size:8px;font-weight:800;padding:1px 4px;border-radius:4px;background:var(--navy);color:#fff}.cell.sv .tag{background:#fff;color:var(--tc)}.tag.lb{background:var(--tc);color:#fff}
 .rowlbl{font-size:10px;color:var(--mut);text-align:center;letter-spacing:1.5px;margin:2px 0}
-.lnote{min-height:16px;font-size:12px;font-weight:700;color:var(--tc);animation:fade .4s}@keyframes fade{from{opacity:0}}
+.lnote{min-height:16px;font-size:12px;font-weight:600;color:var(--mut)}.lnote.fresh{color:var(--tc);font-weight:800;animation:fade .4s}.rwarn{font-size:12px;color:var(--mut);margin:-2px 2px 6px}.rwarn:empty{display:none}@keyframes fade{from{opacity:0}}
 .srv{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;border-width:2px;border-radius:14px;padding:10px 12px;margin:0;font-size:17px;box-shadow:var(--sh)}
 .srv small{opacity:.85}
 .abar{position:sticky;bottom:0;z-index:6;display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px;padding:10px 0;background:linear-gradient(to top,var(--bg) 72%,transparent)}.abar button{display:flex;align-items:center;justify-content:center;gap:6px}
@@ -198,17 +198,12 @@ function replay(m){
   const r=m.rules;let sc=[0,0],no=1,w=[0,0],sets=[],done=false,start=null,end=null,manual=false;
   const rot0=hasRot(m);let slots=null,serving=0,pts=0;
   const fnm=[0,1].map(t=>{const o={};m.teams[t].players.forEach(p=>{o[lbl(p)]=p.fn});return o});
-  /* Posicao inicial do levantador: quem comeca SACANDO tem o levantador na P1; quem comeca RECEBENDO, na P2.
-     So gira a formacao cadastrada (a ordem entre os 6 nunca muda e a equipe salva nao e alterada). Vale a cada set e ao "trocar saque". */
-  const alignSetter=(t,pos)=>{let g=0;while(g++<6&&fnm[t][slots[t][pos-1].t]!=='lev')slots[t]=rotate(slots[t])};
-  const alignAll=()=>{[0,1].forEach(t=>alignSetter(t,t===serving?1:2))};
-  const mk=()=>{if(!rot0)return;slots=[0,1].map(t=>starters(m,t).map(x=>({t:x,on:x})));const f=m.firstServe||0;serving=no%2?f:1-f;pts=0;alignAll()};
-  mk();
   /* LIBERO AUTOMATICO (rules.libAuto): o libero ocupa o lugar do central que esta no fundo (P1, P6 ou P5) e sai quando ele chega a rede.
-     Nao saca (salvo regra de treino) e so entra depois do 1o ponto do set. Tudo e derivado do historico: desfazer restaura sozinho. */
+     Ja vale na formacao inicial do set (quando ha central no fundo). Nao saca (salvo regra de treino). Tudo e derivado do historico:
+     desfazer restaura sozinho. A memoria do rodizio (slot.t) fica sempre com o titular. */
   const auto=m.rules.libAuto===true,libLog=[],act=[0,1].map(t=>{const L=m.teams[t].players.find(p=>p.l);return L?lbl(L):null}),isLibL=(t,x)=>m.teams[t].players.some(p=>p.l&&lbl(p)===x);
   const autoLib=(t,e)=>{
-    if(!slots||!auto||pts===0)return;
+    if(!slots||!auto)return;
     const ll=act[t];if(!ll)return;
     const sl=slots[t],txt=[];
     const back=[0,5,4].filter(i=>fnm[t][sl[i].t]==='cen'&&!(i===0&&serving===t&&!m.rules.libServe));   // centrais no fundo (o central da P1 que vai sacar fica)
@@ -218,6 +213,12 @@ function replay(m){
     if(cur>=0){rec('out',cur);sl[cur].on=sl[cur].t}
     if(tg>=0){rec('in',tg);sl[tg].on=ll}
     if(e)e.al=(e.al||[]).concat(txt)};
+  /* Posicao inicial do levantador: quem comeca SACANDO tem o levantador na P1; quem comeca RECEBENDO, na P2.
+     So gira a formacao cadastrada (a ordem entre os 6 nunca muda e a equipe salva nao e alterada). Vale a cada set e ao "trocar saque". */
+  const alignSetter=(t,pos)=>{let g=0;while(g++<6&&fnm[t][slots[t][pos-1].t]!=='lev')slots[t]=rotate(slots[t])};
+  const alignAll=()=>{[0,1].forEach(t=>alignSetter(t,t===serving?1:2))};
+  const mk=()=>{if(!rot0)return;slots=[0,1].map(t=>starters(m,t).map(x=>({t:x,on:x})));const f=m.firstServe||0;serving=no%2?f:1-f;pts=0;alignAll();autoLib(0,null);autoLib(1,null)};
+  mk();
   for(const e of m.events){
     delete e.al;e.set=no;
     if(e.type==='point'){
@@ -232,7 +233,9 @@ function replay(m){
         if(auto&&isLibL(e.team,e.out)&&isLibL(e.team,e.in)){   // troca de um libero por outro libero (o libero ativo passa a ser o novo)
           const sl=slots[e.team],i=sl.findIndex(s=>s.on===e.out);if(act[e.team]===e.out)act[e.team]=e.in;if(i>=0)sl[i].on=e.in;
           libLog.push({team:e.team,set:no,sc:[...sc],dir:'troca',lib:e.in,tit:i>=0?sl[i].t:'',pos:i+1,txt:'Troca de líbero: sai '+e.out+', entra '+e.in+(i>=0?' (P'+(i+1)+')':' (estava no banco)')})}
-        else{applySub(slots[e.team],e,m);autoLib(e.team,e)}}else if(e.type==='first'&&pts===0){serving=e.team;alignAll()}}}
+        else{applySub(slots[e.team],e,m);autoLib(e.team,e)}}else if(e.type==='first'&&pts===0){serving=e.team;
+          if(auto){libLog.splice(0,libLog.length,...libLog.filter(x=>x.set!==no||x.dir==='troca'));slots.forEach(sl=>sl.forEach(s=>{s.on=s.t}))}   // refaz a entrada do libero do inicio do set
+          alignAll();autoLib(0,null);autoLib(1,null)}}}
   }
   return{sc,no,w,sets,done,start,end,manual,slots,serving,pts,libLog,act};
 }
@@ -280,7 +283,7 @@ function toast(msg,undo){const e=$('#toast');if(!e)return;e.innerHTML='<span>'+e
 function flashSave(){const e=$('#sv');if(!e)return;e.textContent='Salvo ✓';e.className='chip2 ok';clearTimeout(SVT);SVT=setTimeout(()=>{const x=$('#sv');if(x){x.className='chip2';x.textContent='Salvo'}},1600)}
 const LASTSC={};let LASTPT=0;
 /* ---- Quadra: P4 P3 P2 (rede) / P5 P6 P1 (fundo). Destaca levantador, sacador (P1), libero e fileira da rede ---- */
-const libNote=(m,t,R)=>'<div class="lnote">'+esc((R.libLog||[]).filter(y=>y.team===t&&y.set===R.no&&y.sc[0]===R.sc[0]&&y.sc[1]===R.sc[1]).map(y=>y.txt).join(' · '))+'</div>';
+const libNote=(m,t,R)=>{const L=(R.libLog||[]).filter(y=>y.team===t&&y.set===R.no&&y.dir!=='troca'),y=L[L.length-1];return '<div class="lnote'+(y&&y.sc[0]===R.sc[0]&&y.sc[1]===R.sc[1]?' fresh':'')+'">'+(y?esc(y.txt):'')+'</div>'};
 function courtGrid(m,t,R){
   if(!R.slots)return '<div class="mut" style="font-size:12px">Em quadra: '+courtShort(m,t)+'</div>';
   const sl=R.slots[t],srv=R.serving===t&&!R.done,P=m.teams[t].players;
@@ -303,7 +306,7 @@ function histView(){return '<div class="top"><h1>Histórico</h1><button data-a="
 function home(){
   const ms=[...DB.matches].reverse(),st=ms.map(m=>({m,done:replay(m).done})),ao=st.filter(x=>!x.done).map(x=>x.m),fin=st.filter(x=>x.done).map(x=>x.m);
   const chips=sortedTeams().map(t=>'<button class="tc" data-a="topen" data-id="'+t.id+'">'+esc(t.name)+' <i title="'+(rosterErrors(upgradePlayers(t.players),true).length?'formação incompleta':'formação completa')+'">'+(rosterErrors(upgradePlayers(t.players),true).length?'⚠':'✓')+'</i></button>').join('');
-  return '<div class="hbar"><span class="mut">SETPOINT · v1.11</span><span class="grow"></span><button class="ib" data-a="theme" aria-label="Alterar tema (agora: '+THN[themePref()]+')" title="Tema: '+THN[themePref()]+'">'+themeIc()+'</button></div>'+
+  return '<div class="hbar"><span class="mut">SETPOINT · v1.12</span><span class="grow"></span><button class="ib" data-a="theme" aria-label="Alterar tema (agora: '+THN[themePref()]+')" title="Tema: '+THN[themePref()]+'">'+themeIc()+'</button></div>'+
   '<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"><div class="tiles"><button class="tile red" data-a="new">'+IC.plus+' Nova partida</button><button class="tile" data-a="teams">Criar e/ou adicionar equipes</button><button class="tile" data-a="hist">Histórico</button></div></div>'+acctCard()+
   (ao.length?sec('Em andamento',ao.length)+ao.map(matchCard).join(''):'')+
   sec('Equipes',DB.teams.length,'<button class="lnk" data-a="teams">Gerenciar</button>')+(chips?'<div class="chips">'+chips+'</div>':'<p class="mut">Nenhuma equipe ainda. Crie uma para começar a registrar partidas.</p>')+
@@ -332,7 +335,8 @@ function live(){
   const aside='<aside class="aside">'+(s.sets.length?'<div style="text-align:center">'+s.sets.map(x=>'<span class="chip">Set '+x.no+': '+x.sc[0]+'–'+x.sc[1]+'</span>').join('')+'</div>':'')+
     '<div class="box"><b>Últimos registros</b>'+(m.events.length?[...m.events].reverse().slice(0,3).map(e=>'<div class="log"><span><span class="mut">S'+e.set+' '+e.sc[0]+'–'+e.sc[1]+'</span> '+evText(e,m)+'</span><span class="row">'+(e.type==='point'?'<button data-a="edit" data-id="'+e.id+'" aria-label="Corrigir registro">✎</button>':'')+'<button class="dn" data-a="del" data-id="'+e.id+'" aria-label="Excluir registro">✕</button></span></div>').join(''):'<p class="mut">Nada registrado ainda.</p>')+'</div></aside>';
   const abar='<div class="abar"><button class="pri" data-a="undo"'+(m.events.length?'':' disabled')+'>'+IC.undo+' Desfazer</button><button data-a="note">'+IC.note+' Observação</button><button data-a="menu">'+IC.more+' Mais</button></div>';
-  return tb+ban+'<div class="lv"><div class="main">'+srvBar(m,s)+'<div class="sb" style="margin-top:10px">'+side(0)+side(1)+'</div></div>'+aside+'</div>'+abar;
+  const bad=!s.slots&&m.teams.some(t=>t.players.some(p=>p.pos!==undefined));
+  return tb+(bad?'<div class="ban" style="background:var(--dn)">Formação incompleta ou inválida: o rodízio está desativado. Toque em Mais → Editar partida para corrigir.</div>':'')+ban+'<div class="lv"><div class="main">'+srvBar(m,s)+'<div class="sb" style="margin-top:10px">'+side(0)+side(1)+'</div></div>'+aside+'</div>'+abar;
 }
 function libSection(s,m){
   if(m.rules.libAuto!==true)return'';const Lg=s.libLog||[];
@@ -367,29 +371,42 @@ const rd=k=>RS[k].map(p=>({i:p._o,n:String(p.n||'').trim(),name:String(p.name||'
 const clean=a=>a.map(({n,name,fn,pos,s,l})=>{const o={n,name,fn,s:!!s,l:!!l};if(s)o.pos=pos;return o});
 /* regras da escalacao. strict=true exige a formacao 5x1 completa (necessario para iniciar partida) */
 function rosterErrors(P,strict){
-  const er=[],tit=P.filter(p=>p.s),pos=tit.map(p=>p.pos),nums=new Set(),names=new Set();
+  const er=[],tit=P.filter(p=>p.s),pos=tit.map(p=>p.pos),okPos=pos.filter(Number.isInteger),nums=new Set(),names=new Set();
   if(tit.length>6)er.push('Há '+tit.length+' titulares: o máximo é 6.');
-  if(new Set(pos).size!==pos.length)er.push('Duas pessoas estão na mesma posição.');
-  P.forEach(p=>{if(p.s&&p.l)er.push(lbl(p)+' não pode ser titular e líbero ao mesmo tempo.');
+  tit.forEach(p=>{if(!Number.isInteger(p.pos)||p.pos<1||p.pos>6)er.push(lbl(p)+': posição inválida (use P1 a P6).')});
+  if(new Set(okPos).size!==okPos.length)er.push('Duas pessoas estão na mesma posição.');
+  P.forEach(p=>{
+    if(p.s&&p.l)er.push(lbl(p)+' não pode ser titular e líbero ao mesmo tempo.');
+    if(!p.s&&p.pos!==undefined)er.push(lbl(p)+': só titulares têm posição (P1 a P6).');
+    if(p.l?p.fn!=='lib':!FN[p.fn])er.push(lbl(p)+': função inválida'+(p.l?' (o líbero deve ter a função Líbero).':' (use levantador, oposto, ponteiro ou central).'));
     const k=lbl(p).toLowerCase();if(names.has(k))er.push('Jogador repetido: '+lbl(p)+'.');names.add(k);
     if(p.n){if(nums.has(p.n))er.push('O número '+p.n+' está em mais de um jogador.');nums.add(p.n)}});
   if(strict){const miss=[],extra=[];for(const f in NEED){const n=tit.filter(q=>q.fn===f).length;if(n<NEED[f])miss.push((NEED[f]-n)+' '+FNP[f]);if(n>NEED[f])extra.push((n-NEED[f])+' '+FNP[f])}
+    if(tit.length<6&&!miss.length&&!extra.length)er.push('São necessários 6 titulares (há '+tit.length+').');
     if(miss.length||extra.length)er.push('Formação 5x1 (1 levantador, 1 oposto, 2 ponteiros, 2 centrais): '+(miss.length?'faltam '+miss.join(', '):'')+(miss.length&&extra.length?'; ':'')+(extra.length?'sobram '+extra.join(', '):'')+'.')}
   return er}
+/* avisos que NAO bloqueiam: na 5x1 tradicional cada par (ponteiros, centrais, levantador/oposto) fica em posicoes opostas (diferenca de 3) */
+function rosterWarnings(P){
+  const tit=P.filter(p=>p.s&&Number.isInteger(p.pos)),w=[],opp=(a,b)=>Math.abs(a-b)===3,by=f=>tit.filter(p=>p.fn===f).map(p=>p.pos);
+  const pair=(f,nome)=>{const x=by(f);if(x.length===2&&!opp(x[0],x[1]))w.push('os dois '+nome+' não estão em posições opostas (ex.: P1 e P4)')};
+  pair('pon','ponteiros');pair('cen','centrais');
+  const l=by('lev'),o=by('opo');if(l.length===1&&o.length===1&&!opp(l[0],o[0]))w.push('o levantador e o oposto não estão em posições opostas');
+  return w}
+const warnText=P=>{const w=rosterWarnings(clean(P.filter(p=>p.n||p.name)));return w.length?'Dica (não bloqueia): '+w.join('; ')+'.':''};
 const rosterStatus=P=>{const er=rosterErrors(clean(P.filter(p=>p.n||p.name)),true);return{ok:!er.length,t:er.length?'⚠ '+er[0]+(er.length>1?' (+'+(er.length-1)+')':''):'✓ Formação 5x1 completa'}};
 function rosterHtml(k){
   const P=RS[k],ix=P.map((p,i)=>({p,i})),res=ix.filter(x=>!x.p.s&&!x.p.l),lib=ix.filter(x=>x.p.l),st=rosterStatus(P),full=[1,2,3,4,5,6].every(n=>P.some(p=>p.s&&p.pos===n));
   const tit=[1,2,3,4,5,6].map(n=>{const x=ix.find(y=>y.p.s&&y.p.pos===n);
     if(!x)return '<div class="pr vac"><span class="pb">P'+n+'</span><select data-k="'+k+'" data-rs="slot" data-pos="'+n+'"><option value="">Vago — escolher reserva…</option>'+res.map(r=>'<option value="'+r.i+'">'+esc(lbl(r.p))+' ('+FNS[r.p.fn]+')</option>').join('')+'<option value="new">+ Novo jogador</option></select></div>';
     return '<div class="pr"><span class="pb">P'+n+'</span>'+fld(k,x.i,'n','Nº',x.p.n,1)+fld(k,x.i,'name','Nome',x.p.name)+fnSel(k,x.i,x.p.fn)+'<button type="button" data-a="rdem" data-k="'+k+'" data-i="'+x.i+'" title="Mandar para o banco">↓</button></div>'}).join('');
-  return '<div id="rs'+k+'" class="rst '+(st.ok?'ok':'bad')+'">'+esc(st.t)+'</div>'+
-   '<h4 class="sh">TITULARES <small>(6 · quem está em P1 saca)</small></h4>'+tit+
+  return '<div id="rs'+k+'" class="rst '+(st.ok?'ok':'bad')+'">'+esc(st.t)+'</div><div id="rw'+k+'" class="rwarn">'+esc(warnText(P))+'</div>'+
+   '<h4 class="sh">TITULARES <small>('+P.filter(p=>p.s).length+'/6 · quem está em P1 saca)</small></h4>'+tit+
    '<h4 class="sh">LÍBERO(S) <small>(não é titular)</small></h4>'+(lib.map(x=>'<div class="pr lb"><span class="pb">L</span>'+fld(k,x.i,'n','Nº',x.p.n,1)+fld(k,x.i,'name','Nome do líbero',x.p.name)+'<button type="button" data-a="rrm" data-k="'+k+'" data-i="'+x.i+'">✕</button></div>').join('')||'<p class="mut">Nenhum líbero.</p>')+'<button type="button" class="add" data-a="radd" data-k="'+k+'" data-t="lib">+ Líbero</button>'+
    '<h4 class="sh">BANCO DE RESERVAS <small>('+res.length+' · disponíveis para substituição)</small></h4>'+(res.map(x=>'<div class="pr rs"><span class="pb">R</span>'+fld(k,x.i,'n','Nº',x.p.n,1)+fld(k,x.i,'name','Nome',x.p.name)+fnSel(k,x.i,x.p.fn)+'<span class="row2"><button type="button" data-a="rpro" data-k="'+k+'" data-i="'+x.i+'"'+(full?' disabled':'')+' title="'+(full?'Titulares completos (6)':'Promover a titular')+'">↑</button><button type="button" data-a="rrm" data-k="'+k+'" data-i="'+x.i+'">✕</button></span></div>').join('')||'<p class="mut">Nenhum reserva.</p>')+'<button type="button" class="add" data-a="radd" data-k="'+k+'" data-t="res">+ Reserva</button>';
 }
 const renderRoster=k=>{$('#r'+k).innerHTML=rosterHtml(k)};
 const fillRows=(k,ps)=>{RS[k]=ps.map((p,i)=>({...p,_o:i}));renderRoster(k)};
-function paintStatus(k){const e=$('#rs'+k);if(e){const s=rosterStatus(RS[k]);e.className='rst '+(s.ok?'ok':'bad');e.textContent=s.t}}
+function paintStatus(k){const e=$('#rs'+k);if(e){const s=rosterStatus(RS[k]);e.className='rst '+(s.ok?'ok':'bad');e.textContent=s.t}const w=$('#rw'+k);if(w)w.textContent=warnText(RS[k])}
 function slotPick(k,pos,v){if(!v)return;const P=RS[k];if(v==='new')P.push({n:'',name:'',fn:PAT[pos-1],s:true,pos,l:false});else{const p=P[+v];if(p&&!p.s&&!p.l){p.s=true;p.pos=pos}}renderRoster(k)}
 const rosterBox=k=>'<div>'+(k==='t'?'':'<div class="rh">Equipe '+k.toUpperCase()+'</div>')+'<div id="r'+k+'"></div></div>';
 const readRules=()=>{const g=id=>Math.max(1,parseInt($(id).value)||1),sw=g('#f_sw'),pts=g('#f_pts');return{setsToWin:sw,pts,diff:g('#f_df'),decPts:sw>1?g('#f_dp'):pts,libServe:$('#f_mode').value==='6',libAuto:$('#f_la').value==='1',to:+$('#f_to').value}};
