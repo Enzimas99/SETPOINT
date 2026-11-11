@@ -1,61 +1,48 @@
-# SETPOINT - ativar login e nuvem (Supabase)
+# SETPOINT — contas e nuvem (guia do administrador)
 
-O app funciona sem nada disso (só neste aparelho). Estes passos ligam a conta e a sincronização.
-Você só faz isto UMA vez. Reserve uns 15 minutos.
+**Para o usuário comum não há nada a configurar.** Ele abre o app, toca em **Criar conta** (nome, e-mail e senha) ou **Entrar**, e as equipes e partidas passam a ser guardadas na conta e sincronizadas entre aparelhos. Sem conta, o app continua funcionando normalmente, só neste aparelho.
 
-## 1. Criar o projeto no Supabase
-1. Entre em https://supabase.com e crie uma conta gratuita.
-2. **New project**: nome `setpoint`, escolha uma senha forte para o banco (guarde-a) e a região mais próxima (ex.: South America / São Paulo). Aguarde terminar de criar.
+Este guia é só para quem publica o app (administrador). Faça uma vez.
 
-## 2. Criar as tabelas e as regras de segurança
-1. No menu do projeto, abra **SQL Editor** → **New query**.
-2. Abra o arquivo `supabase-setup.sql`, copie TUDO, cole e clique em **Run**. Deve aparecer "Success".
-   (Isso cria as tabelas `teams` e `matches` e liga a segurança: cada usuário só acessa os próprios dados.)
+## 1. Projeto no Supabase
+1. Em https://supabase.com crie um projeto gratuito (nome `setpoint`, região mais próxima).
+2. **SQL Editor → New query**: cole TODO o arquivo `supabase-setup.sql` e execute (**Run**). Ele cria as tabelas `teams` e `matches` e liga a segurança (RLS): cada usuário só lê e altera as próprias linhas; visitantes sem login não têm acesso.
 
-## 3. Dizer ao Supabase qual é o endereço do app
-Menu **Authentication → URL Configuration**:
-- **Site URL**: o endereço EXATO do app, com a pasta, por exemplo `https://enzimas99.github.io/SETPOINT/setpoint-pwa/` (NÃO use só `https://enzimas99.github.io/`: esse endereço não tem site e dá "404 / Site not found").
-- **Redirect URLs**: adicione `https://enzimas99.github.io/**`
-Salve. (Sem isso, os links de e-mail de confirmação e de recuperação de senha não funcionam.)
+## 2. Endereços do app (Authentication → URL Configuration)
+- **Site URL**: o endereço exato do app publicado, com a pasta. Ex.: `https://SEU-USUARIO.github.io/SETPOINT/setpoint-pwa/`
+  (não use só a raiz `https://SEU-USUARIO.github.io/`: ela não tem site e dá erro 404).
+- **Redirect URLs**: adicione `https://SEU-USUARIO.github.io/**`.
+Sem isso, os links de confirmação de e-mail e de recuperação de senha não funcionam.
 
-## 4. E-mail de confirmação
-Em **Authentication** (aba de provedores/Sign In) → **Email**:
-- Com **Confirm email** LIGADO (recomendado), cada pessoa precisa clicar no link do e-mail antes de entrar.
-- O envio de e-mail padrão do Supabase tem limite baixo por hora. Para muitos usuários, configure um SMTP próprio em **Authentication → SMTP**.
-- Para testar rápido sozinho, você pode desligar a confirmação por um tempo e ligar de novo depois.
+## 3. E-mails (Authentication → Providers → Email)
+- **Confirm email** ligado: cada pessoa confirma o e-mail antes de entrar (recomendado).
+- O envio de e-mail padrão do Supabase tem limite baixo por hora. Para uso real, configure um SMTP próprio em **Authentication → SMTP**.
+- Para testar sozinho, você pode desligar a confirmação por um tempo.
 
-## 5. Copiar os dados do projeto para o app
-1. Menu **Project Settings → API Keys** (ou "API").
-2. Copie a **Project URL** (algo como `https://abcdefgh.supabase.co`).
-3. Copie a **Publishable key** (começa com `sb_publishable_`; em projetos mais antigos pode ser a chave `anon`).
-4. Escolha UMA forma de informar os dois valores:
-   - **Pelo app (mais fácil):** na tela inicial, no cartão "Conta e nuvem", toque em "Configurar nuvem / Entrar", cole a URL e a chave e toque em "Salvar e ativar". Vale para aquele aparelho; repita nos outros.
-   - **Pelo GitHub (vale para todos os aparelhos):** crie na pasta `setpoint-pwa` um arquivo `config.js` (copie o `config.example.js`), cole os dois valores entre as aspas e faça **Commit changes**. Os zips do SETPOINT não trazem mais o `config.js`, então ele nunca será sobrescrito.
+## 4. Chave pública no app (uma vez, só você)
+No arquivo `index.html`, procure por `BUILTIN` e confira:
+```
+const BUILTIN={url:'https://SEU-PROJETO.supabase.co',key:'sb_publishable_...'};
+```
+- A **Project URL** e a **chave publishable** (Project Settings → API Keys) são públicas por desenho e podem ficar no código: a proteção é feita pelas regras RLS do passo 1.
+- **NUNCA** coloque a chave `secret` ou `service_role` em nenhum arquivo do app.
+- O usuário comum nunca vê nem digita essas informações. (O arquivo opcional `config.js` não é mais necessário.)
 
-IMPORTANTE: use só a chave **publishable/anon** (pública por desenho, protegida pelas regras do passo 2). NUNCA cole a chave **secret** ou **service_role** no `config.js`.
+## Como funciona
+- **Offline primeiro**: o app sempre grava no aparelho; a nuvem é uma cópia sincronizada em segundo plano. Sem internet, os pontos ficam guardados e são enviados quando a conexão volta, sem duplicar.
+- **Contas separadas**: cada conta tem seu próprio armazenamento local; sair de uma conta e entrar em outra não mistura dados.
+- **Alterações em dois aparelhos**: vale a mais recente. Exclusões também são sincronizadas.
+- **Indicador de estado** (barra superior): "Tudo sincronizado", "N aguardando envio", "Offline · N pendente(s)" ou "Falha ao sincronizar".
+- **Login**: e-mail e senha, criação de conta, recuperação de senha e confirmação de e-mail.
 
-## 6. Atualizar o app no GitHub
-Envie para a pasta `setpoint-pwa` do repositório os arquivos novos: `index.html`, `sw.js` e `config.js` (já preenchido). Abra o app com internet; ele se atualiza sozinho.
-
-## 7. Testar
-1. No app, na tela inicial, toque em **Criar conta**, informe nome, e-mail e senha (mín. 6 caracteres).
-2. Confirme o e-mail (se a confirmação estiver ligada) e entre.
-3. Se havia equipes/partidas salvas no aparelho antes do login, o app pergunta se quer enviá-las para a conta.
-4. Crie uma equipe, espere o texto "☁ Tudo sincronizado" no canto da tela.
-5. Entre com a mesma conta em outro aparelho: as equipes e partidas aparecem lá.
-6. Modo avião: registre pontos; aparece "☁ Offline · N pendente(s)". Ao voltar a internet, ele envia sozinho.
-
-## Como funciona (resumo)
-- O app sempre grava primeiro no aparelho. A nuvem é uma cópia, sincronizada em segundo plano.
-- Cada conta tem seu próprio armazenamento local; sair de uma conta e entrar em outra não mistura dados.
-- Se a mesma equipe for editada em dois aparelhos, vale a alteração mais recente.
-- Excluir uma equipe ou partida também é sincronizado.
-- O **backup em arquivo** continua existindo como segurança extra.
-
-## Atenção
-- Projetos do plano gratuito do Supabase podem ser **pausados após cerca de uma semana sem uso**. Se isso acontecer, entre no painel e clique em restaurar/retomar o projeto (confira as regras atuais do plano). Os dados no aparelho continuam seguros.
-- Esqueceu a senha? Na tela de login, toque em "Esqueci minha senha".
+## Teste em dois aparelhos
+1. Crie uma conta no aparelho 1 e uma equipe: aguarde "Tudo sincronizado".
+2. Entre com a mesma conta no aparelho 2: a equipe aparece.
+3. Modo avião no aparelho 1: registre pontos ("Offline · N pendente(s)"). Ao reconectar, envia sozinho; no aparelho 2 a partida aparece completa e sem duplicar.
 
 ## Problemas comuns
-- **Link do e-mail abre "There isn't a GitHub Pages site here"**: o Site URL do passo 3 está apontando para a raiz. Corrija e peça um novo e-mail (links antigos continuam apontando para o lugar errado).
-- **"Link expirado ou inválido" (otp_expired)**: o link vale uma vez só, e alguns apps de e-mail o abrem automaticamente. Tente entrar com e-mail e senha; se pedir confirmação, toque em "Reenviar e-mail de confirmação" na tela de login.
+- **Link do e-mail abre "There isn't a GitHub Pages site here"**: o Site URL está na raiz. Corrija (passo 2) e peça um novo e-mail.
+- **"Link expirado ou inválido"**: o link vale uma vez só; alguns apps de e-mail o abrem sozinhos. Tente entrar com e-mail e senha; se pedir confirmação, use "Reenviar e-mail de confirmação" na tela de login.
+- **"Entrar indisponível"**: falta a chave publishable em `BUILTIN` (passo 4).
+- **"Nuvem sem as tabelas"**: o `supabase-setup.sql` não foi executado (passo 1).
+- Projetos do plano gratuito do Supabase podem ser pausados após cerca de uma semana sem uso: retome o projeto no painel (confira as regras atuais do plano). Os dados no aparelho continuam seguros.
