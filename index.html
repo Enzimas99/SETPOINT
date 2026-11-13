@@ -145,6 +145,20 @@ details.more{margin:20px 0 4px}details.more summary{cursor:pointer;color:var(--m
 details.reg{margin:14px 0 4px}details.reg summary{padding:10px 2px}
 .abar{max-width:980px;margin:0 auto}
 @media(min-width:1100px){.sc{font-size:clamp(96px,10vw,160px)}}
+.abtn{display:flex;align-items:center;justify-content:center;text-decoration:none;border-radius:12px;padding:14px;font-weight:600;min-height:48px;background:var(--af);color:#fff}.pngv{width:100%;max-height:60vh;object-fit:contain;border:1px solid var(--bd);border-radius:8px;background:#fff}
+
+/* ===== v1.13: tela inicial e menu ===== */
+.stwrap{max-width:520px;margin:0 auto}.stwrap .hero{margin-bottom:6px}
+.card2{display:grid;gap:10px;margin-top:14px}.hello{margin:0;text-align:center;font-size:17px}
+.stb{display:flex;align-items:center;justify-content:center;gap:8px;min-height:58px;border-radius:14px;font-size:18px;font-weight:700;border:2px solid var(--a);background:var(--card);color:var(--a);width:100%}
+.stb.red{background:var(--bf);border-color:var(--bf);color:#fff;font-size:20px}
+.menu{display:grid;gap:12px;max-width:560px;margin:8px auto 0}
+.mcard{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px;border-radius:18px;min-height:88px;box-shadow:var(--sh);background:var(--card);border:1px solid var(--bd);color:var(--tx)}
+.mcard .mi{width:54px;height:54px;border-radius:14px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}.mcard .mi .ic{width:28px;height:28px}
+.mcard b{display:block;font-size:19px}.mcard small{display:block;color:var(--mut);font-size:13px;font-weight:400;margin-top:2px}
+.mcard.red{background:var(--bf);border-color:var(--bf);color:#fff}.mcard.red small{color:rgba(255,255,255,.88)}.mcard.red .mi{background:rgba(255,255,255,.2)}
+.cont{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:14px;border:1px dashed var(--bf);background:var(--card)}
+@media(min-width:700px){.menu{gap:14px}.mcard{min-height:96px}}
 </style></head><body>
 <div id="warn"></div><div id="toast" role="status" aria-live="polite"></div><div id="app"></div><div id="modal"></div><div id="sync"></div>
 <script src="config.js"></script>
@@ -159,7 +173,7 @@ details.reg{margin:14px 0 4px}details.reg summary{padding:10px 2px}
 const GUEST_KEY='setpoint:v1';
 let SES=null;try{SES=JSON.parse(localStorage.getItem('setpoint:auth'))}catch(e){}
 if(!(SES&&SES.user&&SES.refresh_token))SES=null;
-let KEY=SES?'setpoint:u:'+SES.user.id:GUEST_KEY,cur=null,view='home',flow={};
+let KEY=SES?'setpoint:u:'+SES.user.id:GUEST_KEY,cur=null,view='start',flow={};
 function uid(){return Math.random().toString(36).slice(2,9)}
 /* ---- Modelo 5x1 ----
  jogador: {n, name, fn:'lev|opo|pon|cen|lib', s:true se titular, pos:1-6 (so titular), l:true se libero}
@@ -286,7 +300,7 @@ const roster=(i,skill,all)=>{const on=all?null:lineup(cur,i).court;
   return L};
 /* ---- Icones, tema, avisos ---- */
 const ic=(d,x)=>'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"'+(x||'')+'>'+d+'</svg>';
-const IC={back:ic('<path d="M15 18l-6-6 6-6"/>'),undo:ic('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),more:ic('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',' style="fill:currentColor"'),note:ic('<path d="M5 4h14v12l-5 5H5z"/><path d="M14 21v-5h5"/>'),plus:ic('<path d="M12 5v14M5 12h14"/>'),flip:ic('<path d="M7 7h13l-3-3M17 17H4l3 3"/>'),sun:ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>'),moon:ic('<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>'),auto:ic('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18z" style="fill:currentColor"/>')};
+const IC={back:ic('<path d="M15 18l-6-6 6-6"/>'),undo:ic('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),more:ic('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',' style="fill:currentColor"'),note:ic('<path d="M5 4h14v12l-5 5H5z"/><path d="M14 21v-5h5"/>'),plus:ic('<path d="M12 5v14M5 12h14"/>'),users:ic('<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.2c3 0 5 2.2 5 5.2"/>'),hist:ic('<path d="M4 5v5h5"/><path d="M5.5 15a8 8 0 100-6.5L4 10"/><path d="M12 8v4l3 2"/>'),flip:ic('<path d="M7 7h13l-3-3M17 17H4l3 3"/>'),sun:ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>'),moon:ic('<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>'),auto:ic('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18z" style="fill:currentColor"/>')};
 const THEMES=['auto','light','dark'],THN={auto:'Automático',light:'Claro',dark:'Escuro'};
 const themePref=()=>{let t='auto';try{t=localStorage.getItem('setpoint:theme')||'auto'}catch(e){}return THEMES.includes(t)?t:'auto'};
 function applyTheme(){
@@ -319,17 +333,24 @@ function matchCard(m){
   const s=replay(m);
   return '<div class="mc'+(s.done?'':' lv')+'"><div class="mt"><b>'+esc(m.name)+'</b><span class="pill'+(s.done?'':' on')+'">'+(s.done?'Encerrada':'Em andamento')+'</span></div><div class="res"><span class="n" style="color:var(--a)">'+esc(m.teams[0].name)+'</span><span class="s">'+s.w[0]+' × '+s.w[1]+'</span><span class="n" style="color:var(--b)">'+esc(m.teams[1].name)+'</span></div><div class="mut">'+new Date(m.created).toLocaleString('pt-BR')+'</div><div class="row" style="margin-top:10px"><button class="pri" data-a="open" data-id="'+m.id+'">'+(s.done?'Abrir':'Continuar')+'</button><button data-a="rep" data-id="'+m.id+'">Súmula</button><button data-a="editm" data-id="'+m.id+'">Editar</button><button class="dn" data-a="rm" data-id="'+m.id+'">Excluir</button></div></div>'}
 const sec=(t,n,btn)=>'<div class="sec"><h3>'+t+(n!=null?' · '+n:'')+'</h3>'+(btn||'')+'</div>';
-const histList=()=>{const q=(flow.hq||'').trim().toLowerCase(),ms=[...DB.matches].reverse().filter(m=>replay(m).done&&(!q||(m.name+' '+m.teams[0].name+' '+m.teams[1].name).toLowerCase().includes(q)));return ms.length?ms.map(matchCard).join(''):'<p class="mut">'+(q?'Nenhuma partida encontrada.':'Nenhuma partida encerrada ainda.')+'</p>'};
-function histView(){return '<div class="top"><h1>Histórico</h1><button data-a="home">Voltar</button></div><input id="hq" class="search" type="search" placeholder="Buscar por equipe ou nome da partida…" aria-label="Buscar partidas" value="'+esc(flow.hq||'')+'"><div id="hl">'+histList()+'</div>'}
+const histList=()=>{const q=(flow.hq||'').trim().toLowerCase(),all=[...DB.matches].reverse().filter(m=>!q||(m.name+' '+m.teams[0].name+' '+m.teams[1].name).toLowerCase().includes(q)).map(m=>({m,d:replay(m).done})),ao=all.filter(x=>!x.d).map(x=>x.m),fin=all.filter(x=>x.d).map(x=>x.m);
+  const out=(ao.length?sec('Em andamento',ao.length)+ao.map(matchCard).join(''):'')+(fin.length?sec('Encerradas',fin.length)+fin.map(matchCard).join(''):'');
+  return out||'<p class="mut">'+(q?'Nenhuma partida encontrada.':'Nenhuma partida ainda.')+'</p>'};
+function histView(){return '<div class="top"><h1>Histórico de partidas</h1><button data-a="home">Voltar</button></div><input id="hq" class="search" type="search" placeholder="Buscar por equipe ou nome da partida…" aria-label="Buscar partidas" value="'+esc(flow.hq||'')+'"><div id="hl">'+histList()+'</div>'}
+/* Tela inicial: logo e acesso. Conectado: botao "Entrar" leva ao menu. Nao conectado: Entrar / Criar conta (ou continuar sem conta) */
+function startView(){
+  const hb='<div class="hbar"><span class="grow"></span><button class="ib" data-a="theme" aria-label="Alterar tema (agora: '+THN[themePref()]+')" title="Tema: '+THN[themePref()]+'">'+themeIc()+'</button></div>';
+  const card=SES&&CLOUD
+    ?'<div class="card2"><p class="hello">Olá, <b>'+esc(SES.user.name||SES.user.email)+'</b></p><button class="stb red" data-a="home">Entrar</button><div class="mut" style="text-align:center"><button id="sync2" class="chip2" data-a="acct" aria-label="Conta e sincronização"></button></div><button class="lnk" data-a="signout">Sair da conta</button></div>'
+    :'<div class="card2"><button class="stb red" data-a="am" data-m="in">Entrar</button><button class="stb" data-a="am" data-m="up">Criar conta</button><button class="lnk" data-a="home">Continuar sem conta</button><p class="mut" style="text-align:center;font-size:12px">Com uma conta, suas equipes e partidas ficam salvas na nuvem e aparecem em outros aparelhos. Sem conta, tudo fica só neste aparelho.</p></div>';
+  return '<div class="stwrap">'+hb+'<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"></div>'+card+'<p class="mut" style="text-align:center;font-size:12px;margin-top:16px">SETPOINT · v1.13</p></div>'}
 function home(){
-  const ms=[...DB.matches].reverse(),st=ms.map(m=>({m,done:replay(m).done})),ao=st.filter(x=>!x.done).map(x=>x.m),fin=st.filter(x=>x.done).map(x=>x.m);
-  const chips=sortedTeams().map(t=>'<button class="tc" data-a="topen" data-id="'+t.id+'">'+esc(t.name)+' <i title="'+(rosterErrors(upgradePlayers(t.players),true).length?'formação incompleta':'formação completa')+'">'+(rosterErrors(upgradePlayers(t.players),true).length?'⚠':'✓')+'</i></button>').join('');
-  return '<div class="hbar"><span class="mut">SETPOINT · v1.13</span><span class="grow"></span><button class="ib" data-a="theme" aria-label="Alterar tema (agora: '+THN[themePref()]+')" title="Tema: '+THN[themePref()]+'">'+themeIc()+'</button></div>'+
-  '<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"><div class="tiles"><button class="tile red" data-a="new">'+IC.plus+' Nova partida</button><button class="tile" data-a="teams">Criar e/ou adicionar equipes</button><button class="tile" data-a="hist">Histórico</button></div></div>'+acctCard()+
-  (ao.length?sec('Em andamento',ao.length)+ao.map(matchCard).join(''):'')+
-  sec('Equipes',DB.teams.length,'<button class="lnk" data-a="teams">Gerenciar</button>')+(chips?'<div class="chips">'+chips+'</div>':'<p class="mut">Nenhuma equipe ainda. Crie uma para começar a registrar partidas.</p>')+
-  sec('Encerradas',fin.length,fin.length>3?'<button class="lnk" data-a="hist">Ver histórico</button>':'')+(fin.length?fin.slice(0,3).map(matchCard).join(''):(ao.length?'':'<p class="mut">Nenhuma partida ainda. Toque em “Nova partida” para começar.</p>'))+
-  '<details class="more"><summary>Mais</summary><div class="row"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut">Dados salvos neste aparelho.</p></details>';
+  const ao=DB.matches.filter(m=>!replay(m).done),last=ao[ao.length-1];
+  const card=(a,ic,t,sub,red)=>'<button class="mcard'+(red?' red':'')+'" data-a="'+a+'"><span class="mi">'+ic+'</span><span><b>'+t+'</b><small>'+sub+'</small></span></button>';
+  return '<div class="hbar"><button class="ib" data-a="start" aria-label="Voltar para o início">'+IC.back+'</button><b>Menu principal</b><span class="grow"></span><button id="sync2" class="chip2" data-a="acct" aria-label="Conta e sincronização"></button><button class="ib" data-a="theme" aria-label="Alterar tema (agora: '+THN[themePref()]+')" title="Tema: '+THN[themePref()]+'">'+themeIc()+'</button></div>'+
+  '<div class="menu">'+card('new',IC.plus,'Nova partida','Escolher equipes e regras',true)+card('teams',IC.users,'Gerenciar equipes',DB.teams.length+(DB.teams.length===1?' equipe cadastrada':' equipes cadastradas'))+card('hist',IC.hist,'Histórico de partidas',DB.matches.length+(DB.matches.length===1?' partida':' partidas')+(ao.length?' · '+ao.length+' em andamento':''))+
+  (last?'<div class="cont"><span>Partida em andamento: <b>'+esc(last.name)+'</b></span><button class="pri" data-a="open" data-id="'+last.id+'">Continuar</button></div>':'')+
+  '<details class="more"><summary>Mais</summary><div class="row"><button style="flex:1" data-a="exp">Exportar backup</button><button style="flex:1" data-a="imp">Importar backup</button></div><input type="file" id="impf" accept="application/json,.json" hidden><p class="mut">Dados salvos neste aparelho.</p></details></div>';
 }
 function setup(){
   return '<div class="top"><h1>Nova partida</h1><button data-a="home">Voltar</button></div><form onsubmit="return false">'+
@@ -363,17 +384,67 @@ function live(){
   return tb+(bad?'<div class="ban" style="background:var(--dn)">Formação incompleta ou inválida: o rodízio está desativado. Toque em Mais → Editar partida para corrigir.</div>':'')+ban+setind+'<div class="lv"><div class="main">'+srvBar(m,s)+'<div class="sb">'+side(order[0])+side(order[1])+'</div></div></div>'+log+abar;
 }
 /* linhas da tabela de sets: parcial e duracao. Partida de 1 set: mostra a duracao total */
+function sumStats(m){
+  const cnt={};m.events.filter(e=>e.type==='point').forEach(e=>{const c=cnt[e.team]=cnt[e.team]||{attack:0,block:0,serve:0,error:0};c[e.skill]++});
+  const pl={},P=(t,p)=>pl[t+'|'+p]=pl[t+'|'+p]||{t,p,attack:0,block:0,serve:0,lib:0,x:0};
+  m.events.filter(e=>e.type==='point').forEach(e=>{if(e.p){const t=e.skill==='error'?1-e.team:e.team,o=P(t,e.p);if(e.skill==='error')o.x++;else o[e.skill]++}if(e.lib)P(e.team,e.lib).lib++});
+  const tot=x=>x.attack+x.block+x.serve+x.lib,top=Object.values(pl).filter(x=>tot(x)>0).sort((a,b)=>tot(b)-tot(a)).slice(0,5);
+  const c=(t,k)=>(cnt[t]||{})[k]||0;
+  return{cnt,pl,tot,top,c}}
+/* ---- Sumula em imagem (PNG): layout proprio em canvas, sem bibliotecas, para salvar facil no celular ---- */
+const plain=s=>String(s).replace(/<[^>]+>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&amp;/g,'&');
+function sumBlocks(m){
+  const s=replay(m),{pl,tot,top,c}=sumStats(m),win=s.done&&!s.manual?(s.w[0]>s.w[1]?0:1):-1,N=i=>m.teams[i].name,B=[];
+  B.push({t:'title',x:m.name},{t:'meta',x:'ID '+m.id.toUpperCase()+' · '+new Date(m.created).toLocaleString('pt-BR')},{t:'meta',x:'Duração total: '+dur(elapsed(s))+(s.done?'':' (em andamento)')});
+  B.push({t:'score',a:N(0),b:N(1),sa:s.w[0],sb:s.w[1]},{t:'note',x:win>=0?'Vencedor: '+N(win):s.manual?'Partida encerrada manualmente.':'Partida em andamento.'});
+  B.push({t:'h',x:'Parciais por set'},{t:'table',cols:['Set',N(0),N(1),'Duração'],w:[.16,.28,.28,.28],rows:setRows(m,s).map(x=>[x.n,String(x.a),String(x.b),x.d==null?'—':dur(x.d)])});
+  B.push({t:'h',x:'Maiores pontuadores'},{t:'table',cols:['#','Jogador','Equipe','Pontos'],w:[.1,.4,.34,.16],rows:top.length?top.map((x,i)=>[String(i+1),x.p,N(x.t),String(tot(x))]):[['','Nenhum ponto com jogador identificado','','']]});
+  B.push({t:'h',x:'Pontos por fundamento'},{t:'table',cols:['Equipe','Ataque','Bloqueio','Saque','Erro adv.'],w:[.36,.16,.16,.16,.16],rows:[0,1].map(t=>[N(t),String(c(t,'attack')),String(c(t,'block')),String(c(t,'serve')),String(c(t,'error'))])});
+  const pr=Object.values(pl).map(x=>[x.p,N(x.t),String(x.attack),String(x.block),String(x.serve),String(tot(x)),String(x.x)]);
+  if(pr.length)B.push({t:'h',x:'Jogadores'},{t:'table',cols:['Jogador','Equipe','Atq','Blq','Saq','Total','Erros'],w:[.3,.26,.09,.09,.09,.09,.08],rows:pr});
+  for(const [k,n] of [['to','Tempos técnicos'],['sub','Substituições'],['note','Observações']]){const l=m.events.filter(e=>e.type===k&&e.kind!=='libero');
+    B.push({t:'h',x:n+' ('+l.length+')'});l.length?B.push({t:'list',items:l.map(e=>hm(e.t)+' · Set '+e.set+' ('+e.sc[0]+'–'+e.sc[1]+') · '+plain(evText(e,m)))}):B.push({t:'note',x:'Nenhum registro.',mut:1})}
+  return B}
+/* monta a lista de desenhos (ops) medindo o texto com ctx.measureText; devolve a altura total */
+function layoutSumula(ctx,B,W){
+  const PAD=40,CW=W-2*PAD,ops=[],NAVY='#071331',BLUE='#1d4ed8',RED='#d4202f',INK='#0a1633',MUT='#586a8f',LINE='#d3dbed',SOFT='#f2f5fb',FF='system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+  let y=0;const font=(w,px)=>w+' '+px+'px '+FF,meas=(s,f)=>{ctx.font=f;return ctx.measureText(s).width};
+  const wrap=(txt,mw,f)=>{const out=[];let cur='';for(const w of String(txt).split(/\s+/)){if(!w)continue;let t=cur?cur+' '+w:w;if(meas(t,f)<=mw||!cur){cur=t}else{out.push(cur);cur=w}while(meas(cur,f)>mw&&cur.length>1){let k=cur.length-1;while(k>1&&meas(cur.slice(0,k),f)>mw)k--;out.push(cur.slice(0,k));cur=cur.slice(k)}}out.push(cur);return out};
+  const T=(s,x,yy,f,c,al)=>ops.push({k:'t',s,x,y:yy,font:f,c,al:al||'left'}),Rc=(x,yy,w,h,c)=>ops.push({k:'r',x,y:yy,w,h,c});
+  Rc(0,0,W,92,NAVY);{const f=font('italic 800',40),a=meas('SET',f);T('SET',PAD,60,f,'#fff');T('POINT',PAD+a+4,60,f,'#ff4b5c');T('sua súmula de vôlei',W-PAD,58,font(400,14),'#a3b3d8','right')}
+  y=92+30;
+  for(const b of B){
+    if(b.t==='title'){const f=font(800,28);for(const l of wrap(b.x,CW,f)){T(l,PAD,y+26,f,INK);y+=34}y+=2}
+    else if(b.t==='meta'){const f=font(400,15);for(const l of wrap(b.x,CW,f)){T(l,PAD,y+16,f,MUT);y+=22}}
+    else if(b.t==='score'){y+=14;const fn=font(700,20),half=CW/2-64;const la=wrap(b.a,half,fn),lb=wrap(b.b,half,fn),n=Math.max(la.length,lb.length);
+      la.forEach((l,i)=>T(l,PAD+half/2,y+22+i*26,fn,BLUE,'center'));lb.forEach((l,i)=>T(l,W-PAD-half/2,y+22+i*26,fn,RED,'center'));
+      T(b.sa+' × '+b.sb,W/2,y+Math.max(44,22+n*26-6),font(800,54),INK,'center');y+=Math.max(70,n*26+24)+10}
+    else if(b.t==='note'){const f=font(b.mut?400:700,16);for(const l of wrap(b.x,CW,f)){T(l,b.mut?PAD:W/2,y+18,f,b.mut?MUT:INK,b.mut?'left':'center');y+=24}y+=2}
+    else if(b.t==='h'){y+=18;T(b.x.toUpperCase(),PAD,y+14,font(800,13),MUT);Rc(PAD,y+22,CW,2,LINE);y+=34}
+    else if(b.t==='list'){const f=font(400,15);for(const it of b.items){const ls=wrap(it,CW-18,f);T('•',PAD,y+17,f,RED);ls.forEach((l,i)=>T(l,PAD+18,y+17+i*21,f,INK));y+=ls.length*21+5}}
+    else if(b.t==='table'){const xs=[];let acc=PAD;b.w.forEach(w=>{xs.push(acc);acc+=w*CW});
+      const row=(cells,head,shade)=>{const fN=font(head?700:400,head?13:15),lines=cells.map((t,i)=>wrap(t,b.w[i]*CW-14,fN)),n=Math.max(...lines.map(l=>l.length)),hgt=n*20+14;
+        if(shade)Rc(PAD,y,CW,hgt,shade);lines.forEach((ls,i)=>ls.forEach((l,k)=>{const num=i>0&&/^[\d:—–×\-]+$/.test(l);T(l,num?xs[i]+b.w[i]*CW/2:xs[i]+7,y+19+k*20,fN,head?MUT:INK,num?'center':'left')}));y+=hgt;Rc(PAD,y,CW,1,LINE)};
+      row(b.cols,true,SOFT);b.rows.forEach(r=>row(r,false))}
+  }
+  return{ops,h:Math.ceil(y+PAD)}}
+function paintSumula(ops,W,H,SC){
+  const c=document.createElement('canvas');c.width=Math.round(W*SC);c.height=Math.round(H*SC);const x=c.getContext('2d');x.scale(SC,SC);x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  for(const o of ops){if(o.k==='r'){x.fillStyle=o.c;x.fillRect(o.x,o.y,o.w,o.h)}else{x.font=o.font;x.fillStyle=o.c;x.textAlign=o.al;x.textBaseline='alphabetic';x.fillText(o.s,o.x,o.y)}}
+  return c}
+function makePng(){
+  const m=cur,W=900,L=layoutSumula(document.createElement('canvas').getContext('2d'),sumBlocks(m),W),SC=Math.max(1,Math.min(2,Math.sqrt(14e6/(W*L.h)))),cv=paintSumula(L.ops,W,L.h,SC);
+  const name='sumula-'+(m.name||'partida').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.png';
+  const show=(url,file)=>{flow.pngFile=file;openM('<h3>Súmula</h3><img class="pngv" alt="Súmula em imagem" src="'+url+'"><div class="grid" style="margin-top:10px"><a class="abtn pri" download="'+name+'" href="'+url+'">Baixar imagem</a>'+(file&&navigator.canShare&&navigator.canShare({files:[file]})?'<button class="big" data-a="pngshare">Compartilhar / salvar</button>':'')+'</div><p class="mut">No iPhone, se o download não abrir, segure a imagem e escolha “Salvar em Fotos”.</p>')};
+  if(cv.toBlob)cv.toBlob(b=>{if(!b)return show(cv.toDataURL('image/png'),null);let f=null;try{f=new File([b],name,{type:'image/png'})}catch(e){}show(URL.createObjectURL(b),f)},'image/png');
+  else show(cv.toDataURL('image/png'),null)}
 function setRows(m,s){
   const open=!(s.done&&!s.manual),total=s.sets.length+(open?1:0),rows=s.sets.map(x=>({n:String(x.no),a:x.sc[0],b:x.sc[1],d:total===1?elapsed(s):(x.st!=null?x.en-x.st:null)}));
   if(open)rows.push({n:s.no+(s.manual?' (interrompido)':' (atual)'),a:s.sc[0],b:s.sc[1],d:total===1?elapsed(s):(s.ss!=null?(s.done?s.end:Date.now())-s.ss:null)});
   return rows}
 function report(){
   const m=cur,s=replay(m),R=m.rules,win=s.done&&!s.manual?(s.w[0]>s.w[1]?0:1):-1;
-  const cnt={};m.events.filter(e=>e.type==='point').forEach(e=>{const c=cnt[e.team]=cnt[e.team]||{attack:0,block:0,serve:0,error:0};c[e.skill]++});
-  const pl={},P=(t,p)=>pl[t+'|'+p]=pl[t+'|'+p]||{t,p,attack:0,block:0,serve:0,lib:0,x:0};
-  m.events.filter(e=>e.type==='point').forEach(e=>{if(e.p){const t=e.skill==='error'?1-e.team:e.team,o=P(t,e.p);if(e.skill==='error')o.x++;else o[e.skill]++}if(e.lib)P(e.team,e.lib).lib++});
-  const tot=x=>x.attack+x.block+x.serve+x.lib,top=Object.values(pl).filter(x=>tot(x)>0).sort((a,b)=>tot(b)-tot(a)).slice(0,5);
-  const c=(t,k)=>(cnt[t]||{})[k]||0;
+  const {pl,tot,top,c}=sumStats(m);
   return '<div class="top noprint"><button data-a="back">‹ Voltar</button><button class="pri" data-a="png">Baixar Súmula</button><button data-a="print">Imprimir / PDF</button></div>'+
   '<div class="box"><h1>SET<b>POINT</b> — Súmula</h1><p><b>'+esc(m.name)+'</b><br>ID '+m.id.toUpperCase()+' · '+new Date(m.created).toLocaleString('pt-BR')+'<br>Duração: '+dur(elapsed(s))+(s.done?'':' (em andamento)')+'<br>Regras: '+(R.setsToWin*2-1)+' sets máx., '+R.pts+' pts (decisivo '+R.decPts+'), diferença mínima '+R.diff+'.</p>'+
   '<h3>Resultado: '+esc(m.teams[0].name)+' '+s.w[0]+' × '+s.w[1]+' '+esc(m.teams[1].name)+'</h3>'+(win>=0?'<p>Vencedor: <b>'+esc(m.teams[win].name)+'</b></p>':'<p class="mut">'+(s.manual?'Partida encerrada manualmente.':'Partida em andamento.')+'</p>')+
@@ -552,7 +623,7 @@ async function onLogin(ses){
   if(had){flow.guest=guest;openM('<h3>Enviar dados deste aparelho?</h3><p>Há '+guest.matches.length+' partida(s) e '+guest.teams.length+' equipe(s) salvas neste aparelho sem conta. Deseja enviá-las para a conta <b>'+esc(ses.user.email)+'</b>?</p><div class="grid"><button class="big pri" data-a="adopt">Enviar para a conta</button><button class="big" data-a="keepg">Manter separado</button></div>')}
   sync();
 }
-function toGuest(){saveSes(null);KEY=GUEST_KEY;DB=loadDB(KEY);initSigs();cur=null;flow={};go('home')}
+function toGuest(){saveSes(null);KEY=GUEST_KEY;DB=loadDB(KEY);initSigs();cur=null;flow={};go('start')}
 function forceOut(){toGuest();openM('<h3>Sessão expirada</h3><p>Entre de novo para voltar a sincronizar. Seus dados continuam guardados neste aparelho.</p><button class="big pri" data-a="am" data-m="in">Entrar</button>')}
 async function signOut(){if(navigator.onLine)await sync();if(SES&&navigator.onLine){try{await api('/auth/v1/logout?scope=local',{method:'POST'})}catch(e){}}toGuest()}
 /* links do e-mail (confirmação / recuperação de senha) chegam como #access_token=... */
@@ -622,14 +693,10 @@ async function push(my){
   }
 }
 /* ---- Indicadores e telas da conta ---- */
-function syncText(){if(!SES)return'';const n=pending();return SY.busy?'Sincronizando…':!navigator.onLine?'Offline'+(n?' · '+n+' pendente(s)':''):SY.err?'Falha ao sincronizar'+(n?' · '+n+' pendente(s)':''):n?n+' aguardando envio':'Tudo sincronizado'}
+function syncText(){if(!SES)return'';const n=pending();return SY.busy?'Sincronizando…':!navigator.onLine?'Offline'+(n?' · '+n+' pendente(s)':''):SY.err?''+(SY.err==='Erro 404'?'Nuvem sem as tabelas (avise o administrador)':'Falha ao sincronizar')+(n?' · '+n+' pendente(s)':''):n?n+' aguardando envio':'Tudo sincronizado'}
 function paintSync(){const t=SES&&CLOUD?'☁ '+syncText():'Sem conta · só neste aparelho',e=$('#sync');if(e)e.textContent=t;const e2=$('#sync2');if(e2){e2.textContent=t;e2.className='chip2'+(SES&&CLOUD&&!SY.err&&navigator.onLine&&!pending()?' ok':'')}}
-function acctCard(){
-  if(!SES)return '<div class="mc"><div class="mt"><b>Conta</b></div><div class="mut">Entre para guardar equipes e partidas na nuvem e usar em outros aparelhos.</div><div class="row" style="margin-top:10px"><button class="pri" data-a="am" data-m="in">Entrar</button><button data-a="am" data-m="up">Criar conta</button></div></div>';
-  return '<div class="mc"><div class="mt"><b>Olá, '+esc(SES.user.name||SES.user.email)+'</b><span class="pill on">conectado</span></div><div class="mut">'+esc(syncText())+'</div><div class="row" style="margin-top:10px"><button data-a="syncnow">Sincronizar agora</button><button data-a="acct">Conta</button></div></div>';
-}
 function authView(){
-  const head='<div class="top"><h1>Conta</h1><button data-a="home">Voltar</button></div>';
+  const head='<div class="top"><h1>Conta</h1><button data-a="'+(SES?'home':'start')+'">Voltar</button></div>';
   if(!CLOUD)return head+'<div class="box"><h3>Entrar indisponível</h3><p>O login ainda não está ativo neste app. Você pode usar o SETPOINT normalmente: tudo fica salvo neste aparelho. Tente de novo mais tarde.</p><p class="mut" style="font-size:12px">Aviso técnico: falta a chave pública do serviço de contas na configuração do app.</p></div>';
   const m=flow.am||(SES?'acct':'in'),g=flow.amsg,msg='<p id="amsg" class="'+(g&&g.e?'bad':'okm')+'">'+esc(g?g.t:'')+'</p>';
   const f=(id,l,t)=>'<label>'+l+'</label><input id="'+id+'" type="'+t+'" autocomplete="'+(t==='password'?(m==='up'||m==='new'?'new-password':'current-password'):t==='email'?'email':'name')+'">';
@@ -663,7 +730,7 @@ const editView=()=>{let x=setup().replace('Nova partida','Editar partida').repla
   return x};
 let wl=null;const keepAwake=async()=>{try{if(view==='live'&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}};
 document.addEventListener('visibilitychange',keepAwake);
-function render(){$('#app').innerHTML={home,setup,live,report,edit:editView,teams:teamsView,team:teamView,auth:authView,hist:histView}[view]();if(document.body)document.body.className='v-'+view;if(['setup','edit','team'].includes(view))initForm();keepAwake();paintSync()}
+function render(){$('#app').innerHTML={start:startView,home,setup,live,report,edit:editView,teams:teamsView,team:teamView,auth:authView,hist:histView}[view]();if(document.body)document.body.className='v-'+view;if(['setup','edit','team'].includes(view))initForm();keepAwake();paintSync()}
 const go=v=>{closeM();view=v;render();window.scrollTo(0,0)};
 
 /* ---- Fluxo de ponto: equipe → fundamento → jogador ---- */
@@ -763,6 +830,9 @@ document.addEventListener('click',ev=>{
   else if(a==='menu'){const m=cur,s=replay(m);openM('<h3>Mais opções</h3><div class="mlist"><button data-a="rep" data-id="'+m.id+'">Ver súmula</button><button data-a="editm">Editar partida</button><button data-a="restart">Nova partida com as mesmas equipes</button>'+(s.done?'':'<button class="dn" data-a="endm">Encerrar partida</button>')+'<button data-a="theme">Tema: '+THN[themePref()]+'</button><button data-a="acct">Conta e sincronização</button></div>')}
   else if(a==='theme'){cycleTheme();closeM();render()}
   else if(a==='hist')go('hist');
+  else if(a==='start')go('start');
+  else if(a==='png')makePng();
+  else if(a==='pngshare'){const f=flow.pngFile;if(f&&navigator.share)navigator.share({files:[f],title:'Súmula SETPOINT'}).catch(()=>{})}
   else if(a==='flip'){if(cur){try{localStorage.setItem('setpoint:flip:'+cur.id,isFlip(cur)?'0':'1')}catch(e){}const t=$('#toast');if(t)t.className='';render()}}
   else if(a==='to'){if(!replay(cur).done)add({type:'to',team:+d.t})}
   else if(a==='exp'){const b=new Blob([JSON.stringify({app:'setpoint',v:2,matches:DB.matches,teams:DB.teams})],{type:'application/json'}),u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download='setpoint-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
