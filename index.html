@@ -65,7 +65,7 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}th,td{bord
 @media(min-width:700px){.sheet{border-radius:20px;align-self:center}.rg{grid-template-columns:1fr 1fr}}
 @media print{.noprint{display:none!important}body{background:#fff;color:#000}.box,.card{border:1px solid #999}#app{max-width:none}}
 
-/* ===== v1.13: interface ===== */
+/* ===== v1.14: interface ===== */
 :root{--sh:0 1px 2px rgba(7,19,49,.06),0 6px 18px rgba(7,19,49,.08)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--sh:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35)}}
 :root[data-theme="dark"]{--sh:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35)}
@@ -128,7 +128,7 @@ details.more{margin:20px 0 4px}details.more summary{cursor:pointer;color:var(--m
 @media(min-width:700px){.court{max-width:270px}.cell{min-height:66px}.cell b{font-size:20px}.cell small{font-size:11px}.tiles{grid-template-columns:1fr 1fr 1fr}.tile.red{grid-column:auto;grid-row:auto}.sheet{max-width:600px}.pk2,.sk2{gap:10px}}
 @media(min-width:1100px){.lv{grid-template-columns:minmax(0,1fr) 340px;align-items:start}.aside{position:sticky;top:64px}.sc{font-size:clamp(96px,11vw,170px)}.abar{position:static;background:none;padding:6px 0}}
 
-/* ===== v1.13: tela da partida ===== */
+/* ===== v1.14: tela da partida ===== */
 .lv{display:block}.main{max-width:980px;margin:0 auto}
 .sb{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}
 .side{display:flex;flex-direction:column;align-items:stretch;min-width:0}
@@ -147,7 +147,7 @@ details.reg{margin:14px 0 4px}details.reg summary{padding:10px 2px}
 @media(min-width:1100px){.sc{font-size:clamp(96px,10vw,160px)}}
 .abtn{display:flex;align-items:center;justify-content:center;text-decoration:none;border-radius:12px;padding:14px;font-weight:600;min-height:48px;background:var(--af);color:#fff}.pngv{width:100%;max-height:60vh;object-fit:contain;border:1px solid var(--bd);border-radius:8px;background:#fff}
 
-/* ===== v1.13: tela inicial e menu ===== */
+/* ===== v1.14: tela inicial e menu ===== */
 .stwrap{max-width:520px;margin:0 auto}.stwrap .hero{margin-bottom:6px}
 .card2{display:grid;gap:10px;margin-top:14px}.hello{margin:0;text-align:center;font-size:17px}
 .stb{display:flex;align-items:center;justify-content:center;gap:8px;min-height:58px;border-radius:14px;font-size:18px;font-weight:700;border:2px solid var(--a);background:var(--card);color:var(--a);width:100%}
@@ -159,6 +159,15 @@ details.reg{margin:14px 0 4px}details.reg summary{padding:10px 2px}
 .mcard.red{background:var(--bf);border-color:var(--bf);color:#fff}.mcard.red small{color:rgba(255,255,255,.88)}.mcard.red .mi{background:rgba(255,255,255,.2)}
 .cont{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:14px;border:1px dashed var(--bf);background:var(--card)}
 @media(min-width:700px){.menu{gap:14px}.mcard{min-height:96px}}
+
+/* ===== v1.14: ajustes de telas pequenas e demais telas ===== */
+input,select,textarea{font-size:16px}
+.res .n{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.15}
+.mt b{overflow-wrap:anywhere;min-width:0}
+.card .row,.mc .row,.box .row{flex-wrap:wrap}
+@media(max-width:520px){.g4{grid-template-columns:1fr 1fr}.g2:not(.pk){grid-template-columns:1fr}.top h1{font-size:22px}.rg{gap:10px}.pr{grid-template-columns:30px 46px 1fr 78px auto;gap:4px}.pr button{padding:8px}.sheet{padding:14px}.mcard b{font-size:17px}.tiles{grid-template-columns:1fr 1fr}.abar button{font-size:14px;padding:8px 4px}}
+@media(max-width:360px){.pr{grid-template-columns:28px 40px 1fr 70px auto}.pr input,.pr select{padding:6px}.sc{font-size:64px}.tb .chip2{display:none}.tb #sv{display:inline-flex}}
+.top{flex-wrap:wrap}.tw table{min-width:420px}
 </style></head><body>
 <div id="warn"></div><div id="toast" role="status" aria-live="polite"></div><div id="app"></div><div id="modal"></div><div id="sync"></div>
 <script src="config.js"></script>
@@ -343,7 +352,7 @@ function startView(){
   const card=SES&&CLOUD
     ?'<div class="card2"><p class="hello">Olá, <b>'+esc(SES.user.name||SES.user.email)+'</b></p><button class="stb red" data-a="home">Entrar</button><div class="mut" style="text-align:center"><button id="sync2" class="chip2" data-a="acct" aria-label="Conta e sincronização"></button></div><button class="lnk" data-a="signout">Sair da conta</button></div>'
     :'<div class="card2"><button class="stb red" data-a="am" data-m="in">Entrar</button><button class="stb" data-a="am" data-m="up">Criar conta</button><button class="lnk" data-a="home">Continuar sem conta</button><p class="mut" style="text-align:center;font-size:12px">Com uma conta, suas equipes e partidas ficam salvas na nuvem e aparecem em outros aparelhos. Sem conta, tudo fica só neste aparelho.</p></div>';
-  return '<div class="stwrap">'+hb+'<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"></div>'+card+'<p class="mut" style="text-align:center;font-size:12px;margin-top:16px">SETPOINT · v1.13</p></div>'}
+  return '<div class="stwrap">'+hb+'<div class="hero"><img src="logo.jpg" alt="SETPOINT — sua súmula de vôlei" width="1000" height="563"></div>'+card+'<p class="mut" style="text-align:center;font-size:12px;margin-top:16px">SETPOINT · v1.14</p></div>'}
 function home(){
   const ao=DB.matches.filter(m=>!replay(m).done),last=ao[ao.length-1];
   const card=(a,ic,t,sub,red)=>'<button class="mcard'+(red?' red':'')+'" data-a="'+a+'"><span class="mi">'+ic+'</span><span><b>'+t+'</b><small>'+sub+'</small></span></button>';
@@ -438,6 +447,12 @@ function makePng(){
   const show=(url,file)=>{flow.pngFile=file;openM('<h3>Súmula</h3><img class="pngv" alt="Súmula em imagem" src="'+url+'"><div class="grid" style="margin-top:10px"><a class="abtn pri" download="'+name+'" href="'+url+'">Baixar imagem</a>'+(file&&navigator.canShare&&navigator.canShare({files:[file]})?'<button class="big" data-a="pngshare">Compartilhar / salvar</button>':'')+'</div><p class="mut">No iPhone, se o download não abrir, segure a imagem e escolha “Salvar em Fotos”.</p>')};
   if(cv.toBlob)cv.toBlob(b=>{if(!b)return show(cv.toDataURL('image/png'),null);let f=null;try{f=new File([b],name,{type:'image/png'})}catch(e){}show(URL.createObjectURL(b),f)},'image/png');
   else show(cv.toDataURL('image/png'),null)}
+/* Regras de retorno (por set): quem entra no lugar de um titular so pode ser substituido por ele;
+   o titular so volta uma vez, na mesma posicao; depois de voltar, nenhum dos dois entra de novo no set. Derivado do historico (desfazer ok). */
+function subState(m,t,setNo){const pairs={},closed=new Set();
+  m.events.filter(e=>e.type==='sub'&&e.team===t&&e.kind!=='libero'&&e.set===setNo).forEach(e=>{if(pairs[e.out]===e.in){delete pairs[e.out];closed.add(e.in);closed.add(e.out)}else pairs[e.in]=e.out});
+  return{pairs,closed}}
+function allowedIn(st,out,bench){if(st.closed.has(out))return[];if(st.pairs[out]!==undefined)return bench.includes(st.pairs[out])?[st.pairs[out]]:[];const left=Object.values(st.pairs);return bench.filter(x=>!st.closed.has(x)&&!left.includes(x))}
 function setRows(m,s){
   const open=!(s.done&&!s.manual),total=s.sets.length+(open?1:0),rows=s.sets.map(x=>({n:String(x.no),a:x.sc[0],b:x.sc[1],d:total===1?elapsed(s):(x.st!=null?x.en-x.st:null)}));
   if(open)rows.push({n:s.no+(s.manual?' (interrompido)':' (atual)'),a:s.sc[0],b:s.sc[1],d:total===1?elapsed(s):(s.ss!=null?(s.done?s.end:Date.now())-s.ss:null)});
@@ -648,7 +663,7 @@ async function sync(){
     if(!(await fresh())||KEY!==my)return;
     for(const k of['teams','matches'])await pull(k,my);
     await push(my);
-    SY.r401=false;
+    SY.r401=false;SY.at=Date.now();
     if(cur){cur=DB.matches.find(x=>x.id===cur.id)||null;if(!cur&&view==='live')go('home')}
     if(['home','teams'].includes(view)&&!$('#modal').innerHTML)render();
   }catch(e){
@@ -693,7 +708,10 @@ async function push(my){
   }
 }
 /* ---- Indicadores e telas da conta ---- */
-function syncText(){if(!SES)return'';const n=pending();return SY.busy?'Sincronizando…':!navigator.onLine?'Offline'+(n?' · '+n+' pendente(s)':''):SY.err?''+(SY.err==='Erro 404'?'Nuvem sem as tabelas (avise o administrador)':'Falha ao sincronizar')+(n?' · '+n+' pendente(s)':''):n?n+' aguardando envio':'Tudo sincronizado'}
+function syncText(){if(!SES)return'';const n=pending(),pend=n?' · '+n+' pendente(s)':'';
+  if(SY.busy)return'Sincronizando…';if(!navigator.onLine)return'Offline'+pend;
+  if(SY.err)return(SY.err==='Erro 401'||SY.err==='Erro 403'?'Sessão expirada: entre de novo':SY.err==='Erro 404'?'Nuvem sem as tabelas (avise o administrador)':SY.err==='rede'?'Sem conexão com o servidor':'Falha ao sincronizar')+pend;
+  return n?n+' aguardando envio':'Tudo sincronizado'+(SY.at?' · '+new Date(SY.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'')}
 function paintSync(){const t=SES&&CLOUD?'☁ '+syncText():'Sem conta · só neste aparelho',e=$('#sync');if(e)e.textContent=t;const e2=$('#sync2');if(e2){e2.textContent=t;e2.className='chip2'+(SES&&CLOUD&&!SY.err&&navigator.onLine&&!pending()?' ok':'')}}
 function authView(){
   const head='<div class="top"><h1>Conta</h1><button data-a="'+(SES?'home':'start')+'">Voltar</button></div>';
@@ -842,13 +860,16 @@ document.addEventListener('click',ev=>{
     const L=lineup(cur,t),libs=cur.teams[t].players.filter(p=>p.l).map(lbl),act=R.act?R.act[t]:null;
     const used=cur.events.filter(e=>e.type==='sub'&&e.team===t&&e.kind!=='libero'&&e.set===R.no).length,lim=cur.rules.subLimit||0,canSub=!(lim&&used>=lim),benchN=!canSub?[]:auto?L.bench.filter(x=>!isL(x)):L.bench,benchL=auto?libs.filter(x=>x!==act):[],swap=!!(auto&&act&&benchL.length);
     if(!benchN.length&&!swap){return showErr([canSub?'Não há jogadores disponíveis no banco desta equipe.':'Limite de substituições deste set atingido ('+used+'/'+lim+').'])}
-    const outs=R.slots?R.slots[t].map((s,i)=>auto&&s.on!==s.t?{v:s.t,x:s.t+' (líbero em quadra)',i}:{v:s.on,x:s.on,i}).filter(o=>!(auto&&isL(o.v))).map(o=>({...o,p:'P'+(o.i+1)+' · '})):L.court.map(x=>({v:x,x,p:''}));
+    const st=subState(cur,t,R.no);
+    let outs=R.slots?R.slots[t].map((s,i)=>auto&&s.on!==s.t?{v:s.t,x:s.t+' (líbero em quadra)',i}:{v:s.on,x:s.on,i}).filter(o=>!(auto&&isL(o.v))).map(o=>({...o,p:'P'+(o.i+1)+' · '})):L.court.map(x=>({v:x,x,p:''}));
+    outs=outs.filter(o=>allowedIn(st,o.v,benchN).length);
     if(swap)outs.push({v:act,x:act+(L.court.includes(act)?' (em quadra)':' (no banco)'),p:'Líbero · '});
-    flow={team:t,sub:{benchN,benchL,act:swap?act:null}};
-    const opts=l=>l.length?l.map(x=>'<option>'+esc(x)+'</option>').join(''):'<option value="">Nenhum disponível</option>',lst=(swap&&outs[0].v===act)?benchL:benchN;
+    if(!outs.length)return showErr(['Nenhuma substituição possível agora: pelas regras, o jogador que entrou só pode ser substituído por quem ele substituiu, e o titular só volta uma vez por set.']);
+    flow={team:t,sub:{benchN,benchL,act:swap?act:null,st}};
+    const opts=l=>l.length?l.map(x=>'<option>'+esc(x)+'</option>').join(''):'<option value="">Nenhum disponível</option>',lst=(swap&&outs[0].v===act)?benchL:allowedIn(st,outs[0].v,benchN);
     openM('<h3>Substituição — '+esc(cur.teams[t].name)+'</h3><label>Quem sai</label><select id="so">'+outs.map(o=>'<option value="'+esc(o.v)+'">'+o.p+esc(o.x)+'</option>').join('')+'</select><label>Quem entra</label><select id="si">'+opts(lst)+'</select><button class="big pri" style="margin-top:12px" data-a="subok">Registrar</button>'+(auto?'<p class="mut">Líbero automático: ele entra e sai sozinho. Aqui você faz trocas comuns e, havendo outro líbero cadastrado, a troca de líbero (escolha "Líbero" em Quem sai).</p>':''))}
   else if(a==='subok'){const o=$('#so').value,i=$('#si').value;if(!i)return showErr(['Escolha quem entra: não há jogador disponível.']);
-    {const R2=replay(cur),lim0=cur.rules.subLimit||0,isL0=x=>cur.teams[flow.team].players.some(p=>lbl(p)===x&&p.l);if(lim0&&!isL0(o)&&!isL0(i)&&cur.events.filter(e=>e.type==='sub'&&e.team===flow.team&&e.kind!=='libero'&&e.set===R2.no).length>=lim0)return showErr(['Limite de substituições deste set atingido ('+lim0+').']);const sl2=R2.slots?R2.slots[flow.team]:null;if(sl2){const k=sl2.findIndex(s=>s.on===o||s.t===o),j=sl2.findIndex(s=>s.t===i);if(j>=0&&j!==k)return showErr([i+' já é titular em outra posição do rodízio.'])}}
+    {const R2=replay(cur),lim0=cur.rules.subLimit||0,isL0=x=>cur.teams[flow.team].players.some(p=>lbl(p)===x&&p.l);if(lim0&&!isL0(o)&&!isL0(i)&&cur.events.filter(e=>e.type==='sub'&&e.team===flow.team&&e.kind!=='libero'&&e.set===R2.no).length>=lim0)return showErr(['Limite de substituições deste set atingido ('+lim0+').']);if(!isL0(o)&&!isL0(i)&&!allowedIn(subState(cur,flow.team,R2.no),o,lineup(cur,flow.team).bench).includes(i))return showErr(['Substituição não permitida: quem entra no lugar de um titular só pode ser substituído por ele, e o titular só volta uma vez, na mesma posição.']);const sl2=R2.slots?R2.slots[flow.team]:null;if(sl2){const k=sl2.findIndex(s=>s.on===o||s.t===o),j=sl2.findIndex(s=>s.t===i);if(j>=0&&j!==k)return showErr([i+' já é titular em outra posição do rodízio.'])}}
     const P=cur.teams[flow.team].players,lib=x=>P.some(p=>lbl(p)===x&&p.l);add({type:'sub',team:flow.team,out:o,in:i,kind:lib(o)||lib(i)?'libero':'normal'})}
   else if(a==='note')openM('<h3>Observação</h3><textarea id="nt" placeholder="Ex.: atleta com dor no joelho"></textarea><button class="big pri" style="margin-top:12px" data-a="noteok">Salvar</button>');
   else if(a==='noteok'){const t=$('#nt').value.trim();if(t)add({type:'note',text:t});else closeM()}
@@ -859,7 +880,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('input',e=>{if(e.target.id==='f_sw')syncDp();if(e.target.id==='hq'){flow.hq=e.target.value;const l=$('#hl');if(l)l.innerHTML=histList()}});
 document.addEventListener('input',e=>{const ds=e.target.dataset||{};if(ds.f==='n'||ds.f==='name'){RS[ds.k][+ds.i][ds.f]=e.target.value;paintStatus(ds.k)}});
-document.addEventListener('change',e=>{const ds=e.target.dataset||{};if(e.target.id==='so'&&flow.sub){const s=flow.sub,l=(s.act&&e.target.value===s.act)?s.benchL:s.benchN;$('#si').innerHTML=l.length?l.map(x=>'<option>'+esc(x)+'</option>').join(''):'<option value="">Nenhum disponível</option>';return}if(ds.rs==='slot'){slotPick(ds.k,+ds.pos,e.target.value);return}if(ds.f==='fn'){RS[ds.k][+ds.i].fn=e.target.value;renderRoster(ds.k);return}if(e.target.id==='s_ta'||e.target.id==='s_tb'){if(e.target.value==='__new'){flow.draft=draft();ED={id:null,back:'setup',side:e.target.id==='s_ta'?'a':'b'};go('team')}else updatePick()}if(e.target.id==='f_pre')syncDp();});
+document.addEventListener('change',e=>{const ds=e.target.dataset||{};if(e.target.id==='so'&&flow.sub){const s=flow.sub,l=(s.act&&e.target.value===s.act)?s.benchL:allowedIn(s.st,e.target.value,s.benchN);$('#si').innerHTML=l.length?l.map(x=>'<option>'+esc(x)+'</option>').join(''):'<option value="">Nenhum disponível</option>';return}if(ds.rs==='slot'){slotPick(ds.k,+ds.pos,e.target.value);return}if(ds.f==='fn'){RS[ds.k][+ds.i].fn=e.target.value;renderRoster(ds.k);return}if(e.target.id==='s_ta'||e.target.id==='s_tb'){if(e.target.value==='__new'){flow.draft=draft();ED={id:null,back:'setup',side:e.target.id==='s_ta'?'a':'b'};go('team')}else updatePick()}if(e.target.id==='f_pre')syncDp();});
 /* importar backup: soma partidas novas (mesmo id não duplica) */
 document.addEventListener('change',e=>{if(e.target.id!=='impf'||!e.target.files[0])return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||!Array.isArray(j.matches))throw 0;let n=0;j.matches.forEach(m=>{if(m&&m.id&&m.teams&&m.rules&&Array.isArray(m.events)&&!DB.matches.some(x=>x.id===m.id)){DB.matches.push(m);n++}});(Array.isArray(j.teams)?j.teams:[]).forEach(t=>{if(t&&t.id&&t.name&&Array.isArray(t.players)&&!DB.teams.some(x=>x.id===t.id))DB.teams.push({...t,players:upgradePlayers(t.players)})});save();render();openM('<h3>Backup importado</h3><p>'+n+' partida(s) adicionada(s).</p><button class="big pri" data-a="close2">OK</button>')}catch(x){openM('<h3>Arquivo inválido</h3><p>Escolha um backup exportado pelo SETPOINT.</p><button class="big" data-a="close2">Fechar</button>')}};r.readAsText(e.target.files[0])});
 setInterval(()=>{const c=$('#clk');if(c&&view==='live')c.textContent=dur(elapsed(replay(cur)))},1000);
